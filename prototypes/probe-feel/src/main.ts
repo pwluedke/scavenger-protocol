@@ -74,6 +74,7 @@ function pollGamepad(): GameInput | null {
 
   if (stickOutside && !prevStickOutside) {
     lastInputSource = 'gamepad';
+    console.log(`gamepad stick active: moveX=${stickX.toFixed(2)} moveY=${stickY.toFixed(2)}`);
   }
 
   const actionButtons: [number, 'fire' | 'probeAction' | 'cancel' | 'pause'][] = [
@@ -90,6 +91,7 @@ function pollGamepad(): GameInput | null {
     const wasPressed = prevButtons[index] ?? false;
     if (pressed && !wasPressed) {
       lastInputSource = 'gamepad';
+      console.log(`gamepad button ${index} pressed`);
       input[action] = true;
     }
   }
