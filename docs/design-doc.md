@@ -28,6 +28,8 @@ A retrofuturistic vertical shmup where a rebel pilot salvages wrecked alien ship
 
 Gamepad API handles controller input in both browser and Pi kiosk. No native driver work required.
 
+Player vertical movement is clamped to the bottom third of the canvas.
+
 ## 4. Probe mechanic spec
 
 ### Fire sequence
