@@ -10,8 +10,19 @@ const TUNING = {
   PLAYER_SPEED: 400,
   PLAYER_FIRE_RATE_MS: 200,
   PLAYER_BULLET_SPEED: 500,
+  GRUNT_SPEED: 80,
+  GRUNT_SINE_AMPLITUDE: 60,
+  GRUNT_SINE_FREQ: 0.002,
+  GRUNT_SIZE: 20,
+  GRUNT_SPAWN_INTERVAL_MS: 1000,
+  HUSK_SPEED: 50,
+  HUSK_SIZE: 32,
+  HUSK_HP: 3,
   HUSK_FIRE_RATE_MS: 2000,
   HUSK_BULLET_SPEED: 300,
+  HUSK_SPAWN_INTERVAL_MS: 6000,
+  WRECK_SIZE: 32,
+  WRECK_DURATION_MS: 10000,
   RETICLE_SPEED: 400,
 } as const;
 
@@ -40,7 +51,10 @@ type GameInput = {
 };
 
 type Bullet = { x: number; y: number };
-
+type EnemyBullet = { x: number; y: number };
+type Grunt = { x: number; y: number; spawnX: number; age: number; hp: number };
+type Husk  = { x: number; y: number; hp: number; lastFireMs: number };
+type Wreck = { x: number; y: number; spawnMs: number };
 type Player = { x: number; y: number; hp: number; lastFireMs: number };
 
 type Keys = Record<string, boolean>;
@@ -136,6 +150,12 @@ const ctx = canvas.getContext('2d')!;
 const PLAYER_Y_MIN = 420 + PLAYER_H / 2;
 const PLAYER_Y_MAX = canvas.height - PLAYER_H / 2;
 
+function rectsOverlap(ax: number, ay: number, aw: number, ah: number,
+                      bx: number, by: number, bw: number, bh: number): boolean {
+  return Math.abs(ax - bx) < (aw + bw) / 2 &&
+         Math.abs(ay - by) < (ah + bh) / 2;
+}
+
 function createState() {
   return {
     player: {
@@ -145,6 +165,13 @@ function createState() {
       lastFireMs: 0,
     } as Player,
     bullets: [] as Bullet[],
+    grunts: [] as Grunt[],
+    husks: [] as Husk[],
+    wrecks: [] as Wreck[],
+    enemyBullets: [] as EnemyBullet[],
+    lastGruntSpawnMs: 0,
+    lastHuskSpawnMs: 0,
+    gameOver: false,
   };
 }
 
@@ -162,6 +189,34 @@ function drawBullets(bullets: Bullet[]): void {
   }
 }
 
+function drawGrunts(grunts: Grunt[]): void {
+  ctx.fillStyle = '#ff4444';
+  for (const g of grunts) {
+    ctx.fillRect(g.x - TUNING.GRUNT_SIZE / 2, g.y - TUNING.GRUNT_SIZE / 2, TUNING.GRUNT_SIZE, TUNING.GRUNT_SIZE);
+  }
+}
+
+function drawHusks(husks: Husk[]): void {
+  ctx.fillStyle = '#ff8800';
+  for (const h of husks) {
+    ctx.fillRect(h.x - TUNING.HUSK_SIZE / 2, h.y - TUNING.HUSK_SIZE / 2, TUNING.HUSK_SIZE, TUNING.HUSK_SIZE);
+  }
+}
+
+function drawWrecks(wrecks: Wreck[]): void {
+  ctx.fillStyle = '#666666';
+  for (const w of wrecks) {
+    ctx.fillRect(w.x - TUNING.WRECK_SIZE / 2, w.y - TUNING.WRECK_SIZE / 2, TUNING.WRECK_SIZE, TUNING.WRECK_SIZE);
+  }
+}
+
+function drawEnemyBullets(bullets: EnemyBullet[]): void {
+  ctx.fillStyle = '#ff0000';
+  for (const b of bullets) {
+    ctx.fillRect(b.x - 2, b.y - 5, 4, 10);
+  }
+}
+
 function drawHp(hp: number): void {
   for (let i = 0; i < TUNING.PLAYER_HP; i++) {
     ctx.beginPath();
@@ -169,6 +224,16 @@ function drawHp(hp: number): void {
     ctx.fillStyle = i < hp ? '#ffffff' : '#444444';
     ctx.fill();
   }
+}
+
+function drawGameOver(): void {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '32px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Dead. Press R to restart.', canvas.width / 2, canvas.height / 2);
 }
 
 let lastTime = 0;
@@ -183,32 +248,141 @@ function loop(timestamp: number): void {
     ? gpInput
     : getKeyboardInput();
 
+  // Reset works regardless of game over state.
   if (justPressed.has('KeyR') || input.reset) {
     state = createState();
+  } else if (!state.gameOver) {
+
+    // Spawn grunts.
+    if (timestamp - state.lastGruntSpawnMs >= TUNING.GRUNT_SPAWN_INTERVAL_MS) {
+      const spawnX = Math.random() * canvas.width;
+      state.grunts.push({ x: spawnX, y: -TUNING.GRUNT_SIZE / 2, spawnX, age: 0, hp: 1 });
+      state.lastGruntSpawnMs = timestamp;
+    }
+
+    // Spawn husks.
+    if (timestamp - state.lastHuskSpawnMs >= TUNING.HUSK_SPAWN_INTERVAL_MS) {
+      const spawnX = Math.random() * canvas.width;
+      state.husks.push({ x: spawnX, y: -TUNING.HUSK_SIZE / 2, hp: TUNING.HUSK_HP, lastFireMs: timestamp });
+      state.lastHuskSpawnMs = timestamp;
+    }
+
+    // Move player.
+    state.player.x += input.moveX * TUNING.PLAYER_SPEED * deltaSeconds;
+    state.player.y += input.moveY * TUNING.PLAYER_SPEED * deltaSeconds;
+    if (state.player.x < 0) state.player.x = canvas.width;
+    if (state.player.x > canvas.width) state.player.x = 0;
+    state.player.y = Math.max(PLAYER_Y_MIN, Math.min(PLAYER_Y_MAX, state.player.y));
+
+    // Player fire.
+    if (input.fire && timestamp - state.player.lastFireMs >= TUNING.PLAYER_FIRE_RATE_MS) {
+      state.bullets.push({ x: state.player.x, y: state.player.y - PLAYER_H / 2 });
+      state.player.lastFireMs = timestamp;
+    }
+
+    // Update player bullets.
+    for (const b of state.bullets) {
+      b.y -= TUNING.PLAYER_BULLET_SPEED * deltaSeconds;
+    }
+    state.bullets = state.bullets.filter(b => b.y > -5);
+
+    // Update grunts.
+    for (const g of state.grunts) {
+      g.age += deltaMs;
+      g.y += TUNING.GRUNT_SPEED * deltaSeconds;
+      g.x = g.spawnX + TUNING.GRUNT_SINE_AMPLITUDE * Math.sin(g.age * TUNING.GRUNT_SINE_FREQ);
+    }
+    state.grunts = state.grunts.filter(g => g.y < canvas.height + TUNING.GRUNT_SIZE / 2);
+
+    // Update husks: move and fire.
+    for (const h of state.husks) {
+      h.y += TUNING.HUSK_SPEED * deltaSeconds;
+      if (timestamp - h.lastFireMs >= TUNING.HUSK_FIRE_RATE_MS) {
+        state.enemyBullets.push({ x: h.x, y: h.y + TUNING.HUSK_SIZE / 2 });
+        h.lastFireMs = timestamp;
+      }
+    }
+    state.husks = state.husks.filter(h => h.y < canvas.height + TUNING.HUSK_SIZE / 2);
+
+    // Update enemy bullets.
+    for (const b of state.enemyBullets) {
+      b.y += TUNING.HUSK_BULLET_SPEED * deltaSeconds;
+    }
+    state.enemyBullets = state.enemyBullets.filter(b => b.y < canvas.height + 5);
+
+    // Expire wrecks.
+    state.wrecks = state.wrecks.filter(w => timestamp - w.spawnMs < TUNING.WRECK_DURATION_MS);
+
+    // Player bullets vs grunts (1-hit kill).
+    state.bullets = state.bullets.filter(b => {
+      for (let i = 0; i < state.grunts.length; i++) {
+        const g = state.grunts[i];
+        if (rectsOverlap(b.x, b.y, 4, 10, g.x, g.y, TUNING.GRUNT_SIZE, TUNING.GRUNT_SIZE)) {
+          state.grunts.splice(i, 1);
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Player bullets vs husks (3-hit kill, spawn wreck on death).
+    state.bullets = state.bullets.filter(b => {
+      for (let i = 0; i < state.husks.length; i++) {
+        const h = state.husks[i];
+        if (rectsOverlap(b.x, b.y, 4, 10, h.x, h.y, TUNING.HUSK_SIZE, TUNING.HUSK_SIZE)) {
+          h.hp -= 1;
+          if (h.hp <= 0) {
+            state.wrecks.push({ x: h.x, y: h.y, spawnMs: timestamp });
+            state.husks.splice(i, 1);
+          }
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Grunts vs player.
+    state.grunts = state.grunts.filter(g => {
+      if (rectsOverlap(g.x, g.y, TUNING.GRUNT_SIZE, TUNING.GRUNT_SIZE, state.player.x, state.player.y, PLAYER_W, PLAYER_H)) {
+        state.player.hp -= 1;
+        return false;
+      }
+      return true;
+    });
+
+    // Husks vs player.
+    state.husks = state.husks.filter(h => {
+      if (rectsOverlap(h.x, h.y, TUNING.HUSK_SIZE, TUNING.HUSK_SIZE, state.player.x, state.player.y, PLAYER_W, PLAYER_H)) {
+        state.player.hp -= 1;
+        return false;
+      }
+      return true;
+    });
+
+    // Enemy bullets vs player.
+    state.enemyBullets = state.enemyBullets.filter(b => {
+      if (rectsOverlap(b.x, b.y, 4, 10, state.player.x, state.player.y, PLAYER_W, PLAYER_H)) {
+        state.player.hp -= 1;
+        return false;
+      }
+      return true;
+    });
+
+    if (state.player.hp <= 0) {
+      state.player.hp = 0;
+      state.gameOver = true;
+    }
   }
-
-  state.player.x += input.moveX * TUNING.PLAYER_SPEED * deltaSeconds;
-  state.player.y += input.moveY * TUNING.PLAYER_SPEED * deltaSeconds;
-
-  if (state.player.x < 0) state.player.x = canvas.width;
-  if (state.player.x > canvas.width) state.player.x = 0;
-
-  state.player.y = Math.max(PLAYER_Y_MIN, Math.min(PLAYER_Y_MAX, state.player.y));
-
-  if (input.fire && timestamp - state.player.lastFireMs >= TUNING.PLAYER_FIRE_RATE_MS) {
-    state.bullets.push({ x: state.player.x, y: state.player.y - PLAYER_H / 2 });
-    state.player.lastFireMs = timestamp;
-  }
-
-  for (const b of state.bullets) {
-    b.y -= TUNING.PLAYER_BULLET_SPEED * deltaSeconds;
-  }
-  state.bullets = state.bullets.filter(b => b.y > -5);
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawWrecks(state.wrecks);
+  drawGrunts(state.grunts);
+  drawHusks(state.husks);
+  drawEnemyBullets(state.enemyBullets);
   drawPlayer(state.player);
   drawBullets(state.bullets);
   drawHp(state.player.hp);
+  if (state.gameOver) drawGameOver();
 
   justPressed.clear();
 
