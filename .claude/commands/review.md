@@ -1,4 +1,8 @@
 # /review
+
+## Version History
+- v2.0 - forked from Session Zero v1.x, rescoped for Scavenger Protocol architecture (logic/render separation, determinism rules, prototype exemptions)
+
 Review the open PR in two explicit passes before recommending merge.
 
 ## Pass 1 -- Spec compliance
@@ -11,14 +15,20 @@ Does this PR deliver exactly what was asked?
 
 ## Pass 2 -- Code quality
 Is the code well built and consistent with the project?
-- Surgical changes only -- every changed line traces to the issue. Flag any drive-by refactoring or unrelated changes.
-- No em dashes anywhere in any file
-- No new localStorage writes for data that belongs in Postgres
-- External APIs mocked in tests -- no live API calls
-- Page Object Model used in all test files -- no raw selectors
-- Demo mode unaffected -- isDemoMode() guards in place where needed
-- No dead code, unused imports, or variables left behind
-- Matches existing code style and conventions
+- Surgical changes only: every changed line traces to the issue. Flag drive-by refactoring.
+- No em dashes anywhere in any file.
+- No emojis anywhere in any file.
+- Logic/render layer separation: no Phaser imports in `src/logic/`, no DOM, no `Date.now()`, no `Math.random()` in logic layer.
+- Determinism: all randomness via seeded RNG, all time explicitly injected.
+- Tuning values pulled from data files (`src/logic/*-data.ts` or `docs/tuning.md`), not hardcoded in scenes or entities.
+- Tests live next to source (`foo.ts` plus `foo.test.ts`).
+- Jest unit tests cover new logic-layer code with reasonable coverage.
+- Playwright tests follow Page Object Model, no raw selectors in test files.
+- No dead code, unused imports, or variables left behind.
+- Matches existing code style and conventions.
+
+## Prototype exemption
+Work under `prototypes/` is exempt from the logic/render separation, determinism, tuning-in-data-files, and test-coverage items. Prototype code must still be clean, readable, and match its own spec. Surgical changes, no em dashes, no emojis, and no dead code rules still apply to prototype work.
 
 ## After both passes
 State one of:
