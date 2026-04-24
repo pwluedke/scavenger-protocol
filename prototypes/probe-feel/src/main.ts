@@ -26,6 +26,7 @@ const BUTTON = {
   PROBE: 2,   // X / Square
   CANCEL: 1,  // B / Circle
   PAUSE: 9,   // Start / Options
+  RESET: 8,   // View (Xbox) / Share (PS) - mirrors keyboard R
 } as const;
 
 type GameInput = {
@@ -35,6 +36,7 @@ type GameInput = {
   probeAction: boolean;
   cancel: boolean;
   pause: boolean;
+  reset: boolean;
 };
 
 type Bullet = { x: number; y: number };
@@ -85,14 +87,15 @@ function pollGamepad(): GameInput | null {
     console.log(`gamepad stick active: moveX=${stickX.toFixed(2)} moveY=${stickY.toFixed(2)}`);
   }
 
-  const actionButtons: [number, 'fire' | 'probeAction' | 'cancel' | 'pause'][] = [
+  const actionButtons: [number, 'fire' | 'probeAction' | 'cancel' | 'pause' | 'reset'][] = [
     [BUTTON.FIRE, 'fire'],
     [BUTTON.PROBE, 'probeAction'],
     [BUTTON.CANCEL, 'cancel'],
     [BUTTON.PAUSE, 'pause'],
+    [BUTTON.RESET, 'reset'],
   ];
 
-  const input: GameInput = { moveX: stickX, moveY: stickY, fire: false, probeAction: false, cancel: false, pause: false };
+  const input: GameInput = { moveX: stickX, moveY: stickY, fire: false, probeAction: false, cancel: false, pause: false, reset: false };
 
   for (const [index, action] of actionButtons) {
     const pressed = gp.buttons[index]?.pressed ?? false;
@@ -122,6 +125,7 @@ function getKeyboardInput(): GameInput {
     probeAction: justPressed.has('KeyE'),
     cancel: justPressed.has('KeyQ'),
     pause: justPressed.has('Escape'),
+    reset: false,
   };
 }
 
@@ -179,7 +183,7 @@ function loop(timestamp: number): void {
     ? gpInput
     : getKeyboardInput();
 
-  if (justPressed.has('KeyR')) {
+  if (justPressed.has('KeyR') || input.reset) {
     state = createState();
   }
 
