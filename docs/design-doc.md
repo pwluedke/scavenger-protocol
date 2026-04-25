@@ -1,6 +1,9 @@
 # Scavenger Protocol: Design Document
 
-Version: v0.1 working draft | Owner: Paul | Status: Pre-implementation, design pass 1 complete
+Version: v0.2 working draft | Owner: Paul | Status: Pre-implementation, design pass 1 complete
+
+Changelog:
+- v0.2 (after probe-feel prototype verdict): added acceleration/deceleration ship movement note to section 3 based on prototype feel observations.
 
 ## 1. Pitch
 
@@ -29,6 +32,8 @@ A retrofuturistic vertical shmup where a rebel pilot salvages wrecked alien ship
 Gamepad API handles controller input in both browser and Pi kiosk. No native driver work required.
 
 Player vertical movement is clamped to the bottom third of the canvas.
+
+Ship movement uses acceleration and deceleration curves rather than instant input response. Specific tuning TBD during design pass 2.
 
 ## 4. Probe mechanic spec
 
