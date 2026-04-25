@@ -177,6 +177,80 @@ docs/diary.md still needs to be created as an empty file to start the implementa
 
 --
 
+## Entry 03: Prototype build, verdict, and external validation
+
+**Date range:** April 2026, multi-session arc following Entry 02
+**Personas involved:** Paul (design lead, playtester), Vega (strategy), Gloom (implementation)
+**Artifacts produced:** prototypes/probe-feel/ (full Canvas 2D prototype), 9 closed issues, /merged slash command, gamepad logging parity, prototype verdict notes, design-doc.md v0.2
+
+### Context
+
+Entry 02 ended with the conventions scaffolding committed and the probe-feel prototype spec defined but unbuilt. Entry 03 covers the actual build of the prototype, the iterative issue-by-issue progression, real Xbox controller integration, the verdict playtest, and the first external validation signal from a senior developer.
+
+### Decisions made
+
+**Issue execution sequence.** The prototype broke into five sequential issues (#4 through #8), with two corrective issues inserted mid-flight (#10 gamepad input, #15 gamepad logging parity) and a workflow tooling issue (#11 /merged slash command) interleaved between them. Total: 9 closed issues for the prototype epic and adjacent infrastructure.
+
+**Workflow tools built before they were needed.** Two infrastructure improvements landed during the prototype work rather than after: the /merged slash command (post-PR-merge local sync automation) and the test-failure-analysis fork to v2.0. Both compounded across every subsequent issue, validating the decision to build them mid-stream rather than defer.
+
+**State factory pattern for resets.** Issue #5 introduced a createState() factory function that returns a fresh game state object. Both initial game start and R-key resets call the same factory. This eliminated partial-reset bugs before they could exist and set the architectural pattern for every subsequent issue. The pattern survived through the probe state machine work in Issue #7 without modification.
+
+**Per-grunt sine age vs shared timestamp.** Each Grunt enemy carries its own age counter that drives its sine-wave horizontal motion, rather than all Grunts sharing a global timestamp. This gives each enemy independent phase, producing the chaotic Megamania-style visual density rather than rigid lockstep formations. Verified visually correct on first run.
+
+**Wreck ownership transfer model.** When the probe enters TETHERED state, the target wreck is moved out of the global state.wrecks array into probe.targetWreck. This avoids index invalidation, makes wreck expiry checks cleanly scoped, and lets drawProbe handle the tethered wreck visualization directly. Cleaner than maintaining cross-references between collections.
+
+**Reticle stays at full speed during slow-mo.** All other game entities slow to 0.2x speed during TARGETING state. The reticle does not. This matches the design intent of slow-mo as a "thinking time" rather than a "everything slower including your input" mechanic. Validated by the playtest: the targeting phase felt useful, not sluggish.
+
+**Probe button is accept-or-cancel based on context.** Original spec had E (probe button) be a no-op when no target was highlighted in TARGETING state. Vega flagged this as a trap state and suggested making E a context-sensitive accept-or-cancel: with target, launches; without target, cancels. Implemented and felt better in playtest than the original spec.
+
+### Options rejected
+
+**Mapping unused controller inputs.** After Xbox controller integration landed, Paul asked whether to map the remaining buttons (D-pad, bumpers, right stick, A, Y, etc.). Vega pushed back: speculative work violates Simplicity First, future input needs are not yet known, and the prototype is throwaway. Decision: only map what the spec needs (movement, fire, probe, cancel, pause, plus the View button reset added mid-Issue #5). Other inputs stay unmapped until the real project's input layer demands them.
+
+**Plan-mode CLAUDE.md rule.** Mid-stream, Paul expressed frustration with manual mode toggling between Plan Mode and Accept Edits in Cursor. Vega initially proposed adding a CLAUDE.md rule that would behaviorally enforce plan-mode for the /plan command regardless of UI mode. After more issues completed, the friction turned out to be theoretical, not real. The Cursor default-mode setting alone was enough. Decision reversed and the rule was not added. This is a documented case of "speculative engineering against friction we hadn't actually measured."
+
+**Hard 15-minute formal verdict playtest.** Issue #8 originally specified a structured 15-minute playtest session with the 7 success criteria evaluated immediately afterward. Paul instead ran 20+ runs across multiple sessions and brought in a second tester (his son), then surfaced the verdict informally. Vega flagged this as a process deviation and asked Paul to confirm a clean evaluation of the 7 criteria before declaring GO. After verification, the informal extended playtest was treated as equivalent or stronger than the formal session. Process variation documented in the verdict notes.
+
+### Surprises
+
+**The prototype felt fun before the probe was even in.** After Issue #6 (enemies and enemy bullets), Paul reported audibly laughing during testing, before any probe mechanic was implemented. This was an unexpected positive signal. Vega flagged the risk of "fun is not verdict" but the data was real: the underlying shmup loop was already engaging on its own merits.
+
+**Gamepad logging gap surfaced post-merge.** Issue #10 (gamepad API support) merged with one-time detection logging but no per-input logs. Keyboard had per-keypress logs from Issue #4. The gap surfaced when Paul tried to verify gamepad input was actually flowing and saw nothing in the console after the initial detection. A small corrective issue (#15) added gamepad logging parity. Paul noted this was a clean example of "spec was incomplete, verification gap surfaced during real use, tracked as a small corrective issue rather than worked around."
+
+**Verification quality compounds.** By Issue #7 (probe state machine), the verification step was 15 numbered checks across state transitions, slow-mo scope, tier ring visual clarity, bullet blocking, and controller parity. Quality of plans, ACs, and verification grew across issues without any explicit instruction. Gloom builds project context and produces tighter plans over time when the workflow stays consistent.
+
+### What got deferred
+
+- **Mapping remaining controller inputs:** until the real project's input layer demands them
+- **Floating pickup probe targets:** the spec made these optional; the prototype validated wreck-only targeting cleanly without them
+- **Ship movement inertia:** noted from playtest as a needed addition, but added to design-doc.md v0.2 for design pass 2 rather than retrofitted into the throwaway prototype
+
+### Verdict
+
+GO.
+
+Paul ran 20+ runs across multiple solo sessions and a second tester (his son) ran extended sessions independently. All 7 success criteria answered YES. The probe mechanic, slow-mo targeting, tether duration tier system, bullet blocking, and cooldown all felt right within tweaks expected during real implementation. One observation flowed forward to the design doc: ship movement needs acceleration and deceleration curves rather than the prototype's instant-on, instant-off responsiveness.
+
+The prototype is archived in prototypes/probe-feel/ and does not flow into src/. Its job is done.
+
+### External validation
+
+A senior developer reviewed the project structure (not just the playable prototype but the repo, journal, ADRs, slash commands, and process discipline) and called it portfolio material on its own merits, citing the AI orchestration story as the differentiator rather than the game itself. Paul noted this carefully and committed to not promoting publicly until at least the scaffold and Issue 1 of the real game are deployed, to avoid undercutting the compounding narrative.
+
+### Open at end of entry
+
+1. Epic #2 (Probe Mechanic Prototype) needs to be closed on GitHub
+2. A new epic for the real game scaffold and design pass 2 work needs to be created
+3. Design pass 2 (per-node stats, boss phases, weapon baseline, ship inertia tuning) needs to happen here in chat with Vega before Gloom touches src/
+4. docs/tuning.md needs to be filled in completely as the deliverable from design pass 2
+5. Vite + Phaser + TypeScript scaffold spec needs to be drafted, then issued, planned, and implemented under the new epic
+
+### Next step
+
+Paul closes Epic #2 manually on GitHub. Vega writes a /issue prompt for Gloom to create the new epic. Then design pass 2 begins in this chat with Vega.
+
+--
+
 
 
 
