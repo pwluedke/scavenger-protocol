@@ -1,5 +1,6 @@
 const TUNING = {
   PROBE_TRAVEL_SPEED: 600,
+  PROBE_RADIUS: 8,
   SLOWMO_FACTOR: 0.2,
   TIER_1_MAX_MS: 1500,
   TIER_2_MAX_MS: 3000,
@@ -24,6 +25,7 @@ const TUNING = {
   WRECK_SIZE: 32,
   WRECK_DURATION_MS: 10000,
   RETICLE_SPEED: 400,
+  RETICLE_SNAP_DIST: 60,
 } as const;
 
 const DEADZONE = 0.15;
@@ -56,6 +58,25 @@ type Grunt = { x: number; y: number; spawnX: number; age: number; hp: number };
 type Husk  = { x: number; y: number; hp: number; lastFireMs: number };
 type Wreck = { x: number; y: number; spawnMs: number };
 type Player = { x: number; y: number; hp: number; lastFireMs: number };
+
+type ProbeState = 'IDLE' | 'TARGETING' | 'LAUNCHED' | 'TETHERED' | 'RETURNING' | 'COOLDOWN';
+
+type Probe = {
+  state: ProbeState;
+  x: number;
+  y: number;
+  hp: number;
+  targetX: number;
+  targetY: number;
+  targetWreck: Wreck | null;
+  highlightedWreck: Wreck | null;
+  tetheredSinceMs: number;
+  cooldownEndMs: number;
+  cooldownTotalMs: number;
+  rewardTier: number;
+  rewardFlashEndMs: number;
+  emptyReturn: boolean;
+};
 
 type Keys = Record<string, boolean>;
 
@@ -172,6 +193,20 @@ function createState() {
     lastGruntSpawnMs: 0,
     lastHuskSpawnMs: 0,
     gameOver: false,
+    probe: {
+      state: 'IDLE' as ProbeState,
+      x: 0, y: 0,
+      hp: TUNING.PROBE_HP,
+      targetX: 0, targetY: 0,
+      targetWreck: null,
+      highlightedWreck: null,
+      tetheredSinceMs: 0,
+      cooldownEndMs: 0,
+      cooldownTotalMs: 0,
+      rewardTier: 0,
+      rewardFlashEndMs: 0,
+      emptyReturn: false,
+    } as Probe,
   };
 }
 
@@ -204,8 +239,8 @@ function drawHusks(husks: Husk[]): void {
 }
 
 function drawWrecks(wrecks: Wreck[]): void {
-  ctx.fillStyle = '#666666';
   for (const w of wrecks) {
+    ctx.fillStyle = w === state.probe.highlightedWreck ? '#cccccc' : '#666666';
     ctx.fillRect(w.x - TUNING.WRECK_SIZE / 2, w.y - TUNING.WRECK_SIZE / 2, TUNING.WRECK_SIZE, TUNING.WRECK_SIZE);
   }
 }
@@ -217,6 +252,60 @@ function drawEnemyBullets(bullets: EnemyBullet[]): void {
   }
 }
 
+function drawProbe(): void {
+  const probe = state.probe;
+  if (probe.state === 'IDLE' || probe.state === 'COOLDOWN') return;
+
+  if (probe.state === 'TARGETING') {
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(probe.x, probe.y, 16, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(probe.x - 22, probe.y); ctx.lineTo(probe.x + 22, probe.y);
+    ctx.moveTo(probe.x, probe.y - 22); ctx.lineTo(probe.x, probe.y + 22);
+    ctx.stroke();
+    return;
+  }
+
+  if (probe.state === 'TETHERED' && probe.targetWreck) {
+    // Draw tethered wreck (highlight; no longer in state.wrecks).
+    ctx.fillStyle = '#aaaaaa';
+    ctx.fillRect(
+      probe.targetWreck.x - TUNING.WRECK_SIZE / 2,
+      probe.targetWreck.y - TUNING.WRECK_SIZE / 2,
+      TUNING.WRECK_SIZE, TUNING.WRECK_SIZE
+    );
+
+    // Tether line from player to probe.
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(state.player.x, state.player.y);
+    ctx.lineTo(probe.x, probe.y);
+    ctx.stroke();
+
+    // Charge ring: lineWidth by tier, radius pulses via sine.
+    const duration = lastTime - probe.tetheredSinceMs;
+    const tier = duration < TUNING.TIER_1_MAX_MS ? 1 : duration < TUNING.TIER_2_MAX_MS ? 2 : 3;
+    const ringLineWidth = tier === 1 ? 2 : tier === 2 ? 4 : 8;
+    const pulse = Math.sin(lastTime * 0.01) * 0.5 + 0.5;
+    const ringRadius = TUNING.PROBE_RADIUS + 4 + pulse * 4;
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = ringLineWidth;
+    ctx.beginPath();
+    ctx.arc(probe.x, probe.y, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Probe circle (LAUNCHED, TETHERED, RETURNING).
+  ctx.fillStyle = '#00ffff';
+  ctx.beginPath();
+  ctx.arc(probe.x, probe.y, TUNING.PROBE_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawHp(hp: number): void {
   for (let i = 0; i < TUNING.PLAYER_HP; i++) {
     ctx.beginPath();
@@ -224,6 +313,29 @@ function drawHp(hp: number): void {
     ctx.fillStyle = i < hp ? '#ffffff' : '#444444';
     ctx.fill();
   }
+}
+
+function drawCooldownBar(): void {
+  if (state.probe.state !== 'COOLDOWN' || state.probe.cooldownTotalMs === 0) return;
+  const remaining = Math.max(0, state.probe.cooldownEndMs - lastTime);
+  const progress = remaining / state.probe.cooldownTotalMs;
+  const barX = 10;
+  const barY = 36;
+  const barW = 80;
+  const barH = 6;
+  ctx.fillStyle = '#333333';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillStyle = '#888888';
+  ctx.fillRect(barX, barY, barW * progress, barH);
+}
+
+function drawRewardFlash(): void {
+  if (lastTime >= state.probe.rewardFlashEndMs || state.probe.rewardTier === 0) return;
+  ctx.fillStyle = '#00ffff';
+  ctx.font = '24px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Tier ${state.probe.rewardTier} reward!`, canvas.width / 2, canvas.height / 2 - 40);
 }
 
 function drawGameOver(): void {
@@ -236,12 +348,139 @@ function drawGameOver(): void {
   ctx.fillText('Dead. Press R to restart.', canvas.width / 2, canvas.height / 2);
 }
 
+// deltaSeconds here is always raw (not slow-mo); reticle uses it directly for real-time movement.
+function updateProbe(input: GameInput, timestamp: number, deltaSeconds: number): void {
+  const probe = state.probe;
+
+  switch (probe.state) {
+    case 'IDLE':
+      if (input.probeAction) {
+        probe.hp = TUNING.PROBE_HP;
+        probe.x = state.player.x;
+        probe.y = state.player.y - 60;
+        probe.highlightedWreck = null;
+        probe.state = 'TARGETING';
+      }
+      break;
+
+    case 'TARGETING': {
+      probe.x += input.moveX * TUNING.RETICLE_SPEED * deltaSeconds;
+      probe.y += input.moveY * TUNING.RETICLE_SPEED * deltaSeconds;
+      probe.x = Math.max(0, Math.min(canvas.width, probe.x));
+      probe.y = Math.max(0, Math.min(canvas.height, probe.y));
+
+      let nearest: Wreck | null = null;
+      let nearestDist: number = TUNING.RETICLE_SNAP_DIST;
+      for (const w of state.wrecks) {
+        const d = Math.hypot(w.x - probe.x, w.y - probe.y);
+        if (d < nearestDist) { nearest = w; nearestDist = d; }
+      }
+      probe.highlightedWreck = nearest;
+
+      if (input.cancel || (input.probeAction && !nearest)) {
+        // Q always cancels; E cancels when no target is highlighted.
+        probe.highlightedWreck = null;
+        probe.state = 'IDLE';
+      } else if (input.probeAction && nearest) {
+        // Probe launches FROM the player position TO the target wreck.
+        probe.x = state.player.x;
+        probe.y = state.player.y;
+        probe.targetX = nearest.x;
+        probe.targetY = nearest.y;
+        probe.targetWreck = nearest;
+        probe.highlightedWreck = null;
+        probe.state = 'LAUNCHED';
+      }
+      break;
+    }
+
+    case 'LAUNCHED': {
+      const dx = probe.targetX - probe.x;
+      const dy = probe.targetY - probe.y;
+      const dist = Math.hypot(dx, dy);
+      const step = TUNING.PROBE_TRAVEL_SPEED * deltaSeconds;
+
+      if (dist <= step) {
+        if (probe.targetWreck && state.wrecks.includes(probe.targetWreck)) {
+          // Remove wreck from world; probe now owns it.
+          state.wrecks = state.wrecks.filter(w => w !== probe.targetWreck);
+          probe.x = probe.targetX;
+          probe.y = probe.targetY;
+          probe.tetheredSinceMs = timestamp;
+          probe.state = 'TETHERED';
+        } else {
+          // Wreck expired during transit; return empty.
+          probe.emptyReturn = true;
+          probe.targetWreck = null;
+          probe.state = 'RETURNING';
+        }
+      } else {
+        probe.x += (dx / dist) * step;
+        probe.y += (dy / dist) * step;
+      }
+      break;
+    }
+
+    case 'TETHERED': {
+      if (probe.targetWreck && timestamp - probe.targetWreck.spawnMs >= TUNING.WRECK_DURATION_MS) {
+        probe.emptyReturn = true;
+        probe.targetWreck = null;
+        probe.state = 'RETURNING';
+        break;
+      }
+      if (input.probeAction) {
+        const duration = timestamp - probe.tetheredSinceMs;
+        probe.rewardTier = duration < TUNING.TIER_1_MAX_MS ? 1 : duration < TUNING.TIER_2_MAX_MS ? 2 : 3;
+        probe.emptyReturn = false;
+        probe.targetWreck = null;
+        probe.state = 'RETURNING';
+      }
+      break;
+    }
+
+    case 'RETURNING': {
+      const dx = state.player.x - probe.x;
+      const dy = state.player.y - probe.y;
+      const dist = Math.hypot(dx, dy);
+      const step = TUNING.PROBE_TRAVEL_SPEED * deltaSeconds;
+
+      if (dist <= step) {
+        if (!probe.emptyReturn && probe.rewardTier > 0) {
+          probe.rewardFlashEndMs = timestamp + 2000;
+        }
+        probe.cooldownTotalMs = TUNING.COOLDOWN_RETURN_MS;
+        probe.cooldownEndMs = timestamp + TUNING.COOLDOWN_RETURN_MS;
+        probe.emptyReturn = false;
+        probe.state = 'COOLDOWN';
+      } else {
+        probe.x += (dx / dist) * step;
+        probe.y += (dy / dist) * step;
+      }
+      break;
+    }
+
+    case 'COOLDOWN':
+      if (timestamp >= probe.cooldownEndMs) {
+        probe.hp = TUNING.PROBE_HP;
+        probe.rewardTier = 0;
+        probe.state = 'IDLE';
+      }
+      break;
+  }
+}
+
 let lastTime = 0;
 
 function loop(timestamp: number): void {
   const deltaMs = timestamp - lastTime;
   lastTime = timestamp;
   const deltaSeconds = deltaMs / 1000;
+
+  // Slow-mo applies only during TARGETING; all world updates use effectiveDeltaSeconds.
+  const effectiveDeltaMs = state.probe.state === 'TARGETING'
+    ? deltaMs * TUNING.SLOWMO_FACTOR
+    : deltaMs;
+  const effectiveDeltaSeconds = effectiveDeltaMs / 1000;
 
   const gpInput = pollGamepad();
   const input = lastInputSource === 'gamepad' && gpInput !== null
@@ -252,6 +491,8 @@ function loop(timestamp: number): void {
   if (justPressed.has('KeyR') || input.reset) {
     state = createState();
   } else if (!state.gameOver) {
+
+    updateProbe(input, timestamp, deltaSeconds);
 
     // Spawn grunts.
     if (timestamp - state.lastGruntSpawnMs >= TUNING.GRUNT_SPAWN_INTERVAL_MS) {
@@ -267,12 +508,14 @@ function loop(timestamp: number): void {
       state.lastHuskSpawnMs = timestamp;
     }
 
-    // Move player.
-    state.player.x += input.moveX * TUNING.PLAYER_SPEED * deltaSeconds;
-    state.player.y += input.moveY * TUNING.PLAYER_SPEED * deltaSeconds;
-    if (state.player.x < 0) state.player.x = canvas.width;
-    if (state.player.x > canvas.width) state.player.x = 0;
-    state.player.y = Math.max(PLAYER_Y_MIN, Math.min(PLAYER_Y_MAX, state.player.y));
+    // Player moves only when not in TARGETING state.
+    if (state.probe.state !== 'TARGETING') {
+      state.player.x += input.moveX * TUNING.PLAYER_SPEED * effectiveDeltaSeconds;
+      state.player.y += input.moveY * TUNING.PLAYER_SPEED * effectiveDeltaSeconds;
+      if (state.player.x < 0) state.player.x = canvas.width;
+      if (state.player.x > canvas.width) state.player.x = 0;
+      state.player.y = Math.max(PLAYER_Y_MIN, Math.min(PLAYER_Y_MAX, state.player.y));
+    }
 
     // Player fire.
     if (input.fire && timestamp - state.player.lastFireMs >= TUNING.PLAYER_FIRE_RATE_MS) {
@@ -282,21 +525,21 @@ function loop(timestamp: number): void {
 
     // Update player bullets.
     for (const b of state.bullets) {
-      b.y -= TUNING.PLAYER_BULLET_SPEED * deltaSeconds;
+      b.y -= TUNING.PLAYER_BULLET_SPEED * effectiveDeltaSeconds;
     }
     state.bullets = state.bullets.filter(b => b.y > -5);
 
     // Update grunts.
     for (const g of state.grunts) {
-      g.age += deltaMs;
-      g.y += TUNING.GRUNT_SPEED * deltaSeconds;
+      g.age += effectiveDeltaMs;
+      g.y += TUNING.GRUNT_SPEED * effectiveDeltaSeconds;
       g.x = g.spawnX + TUNING.GRUNT_SINE_AMPLITUDE * Math.sin(g.age * TUNING.GRUNT_SINE_FREQ);
     }
     state.grunts = state.grunts.filter(g => g.y < canvas.height + TUNING.GRUNT_SIZE / 2);
 
     // Update husks: move and fire.
     for (const h of state.husks) {
-      h.y += TUNING.HUSK_SPEED * deltaSeconds;
+      h.y += TUNING.HUSK_SPEED * effectiveDeltaSeconds;
       if (timestamp - h.lastFireMs >= TUNING.HUSK_FIRE_RATE_MS) {
         state.enemyBullets.push({ x: h.x, y: h.y + TUNING.HUSK_SIZE / 2 });
         h.lastFireMs = timestamp;
@@ -306,11 +549,11 @@ function loop(timestamp: number): void {
 
     // Update enemy bullets.
     for (const b of state.enemyBullets) {
-      b.y += TUNING.HUSK_BULLET_SPEED * deltaSeconds;
+      b.y += TUNING.HUSK_BULLET_SPEED * effectiveDeltaSeconds;
     }
     state.enemyBullets = state.enemyBullets.filter(b => b.y < canvas.height + 5);
 
-    // Expire wrecks.
+    // Expire wrecks not owned by the probe.
     state.wrecks = state.wrecks.filter(w => timestamp - w.spawnMs < TUNING.WRECK_DURATION_MS);
 
     // Player bullets vs grunts (1-hit kill).
@@ -340,6 +583,28 @@ function loop(timestamp: number): void {
       }
       return true;
     });
+
+    // Enemy bullets vs probe (probe blocks bullets; only Husk bullets interact with probe).
+    const probeActive = state.probe.state === 'LAUNCHED'
+      || state.probe.state === 'TETHERED'
+      || state.probe.state === 'RETURNING';
+    if (probeActive) {
+      state.enemyBullets = state.enemyBullets.filter(b => {
+        if (rectsOverlap(b.x, b.y, 4, 10, state.probe.x, state.probe.y,
+                         TUNING.PROBE_RADIUS * 2, TUNING.PROBE_RADIUS * 2)) {
+          state.probe.hp -= 1;
+          if (state.probe.hp <= 0) {
+            state.probe.hp = 0;
+            state.probe.targetWreck = null;
+            state.probe.cooldownTotalMs = TUNING.COOLDOWN_DESTROYED_MS;
+            state.probe.cooldownEndMs = timestamp + TUNING.COOLDOWN_DESTROYED_MS;
+            state.probe.state = 'COOLDOWN';
+          }
+          return false;
+        }
+        return true;
+      });
+    }
 
     // Grunts vs player.
     state.grunts = state.grunts.filter(g => {
@@ -376,12 +641,15 @@ function loop(timestamp: number): void {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawWrecks(state.wrecks);
+  drawProbe();
   drawGrunts(state.grunts);
   drawHusks(state.husks);
   drawEnemyBullets(state.enemyBullets);
   drawPlayer(state.player);
   drawBullets(state.bullets);
   drawHp(state.player.hp);
+  drawCooldownBar();
+  drawRewardFlash();
   if (state.gameOver) drawGameOver();
 
   justPressed.clear();
