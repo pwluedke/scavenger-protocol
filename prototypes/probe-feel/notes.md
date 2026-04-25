@@ -17,6 +17,10 @@ Paul ran 20+ runs solo over multiple sessions. A second player (Paul's son) ran 
 
 GO. Proceed to design pass 2 and the real Vite + Phaser + TypeScript scaffold.
 
+## Design doc disposition
+
+Section 4 (Probe mechanic spec) needs no changes. The mechanic behaved as specified.
+
 ## Observations to carry forward
 
 - Ship movement has no inertia. Direction changes are instant on input; stops are instant on release. This felt acceptable in the prototype but should be addressed in the real implementation. Acceleration and deceleration curves needed. Specific tuning TBD during real implementation.
