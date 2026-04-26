@@ -125,7 +125,7 @@ All prototype values felt right after 20+ runs. Locked in.
 | Pool | Nodes |
 |---|---|
 | Common (Tier 1 tether, 0-1.5s) | Pellet Drive, Plating, Reinforced Tether, Thruster Boost, Scrap Sense |
-| Uncommon (Tier 2 tether, 1.5-3s) | Twin Shot, Hull Memory, Quick Recall, Slip Drive, Extended Haul, Piercing Rounds, Static Shielding, Wide Scanner, Weightless, Opportunist |
+| Uncommon (Tier 2 tether, 1.5-3s) | Twin Shot, Hull Memory, Quick Recall, Slip Drive, Extended Haul, Piercing Rounds, Static Shielding, Integrity Survey, Weightless |
 | Rare (Tier 3 tether, 3s+) | Salvo, Phoenix Protocol, Salvager's Kiss, Phase Shift, Deep Salvage |
 
 ### Full node table
@@ -142,15 +142,15 @@ All prototype values felt right after 20+ runs. Locked in.
 | Defense | 4 | Phoenix Protocol | First lethal hit per run is negated | Drops to 1 HP instead of dying, triggers once per run |
 | Probe | 1 | Reinforced Tether | +1 probe HP | 3 → 4 probe HP |
 | Probe | 2 | Quick Recall | Successful return cooldown reduced 33% | 3000ms → 2000ms (destruction cooldown unchanged at 8000ms) |
-| Probe | 3 | Wide Scanner | Reticle snap distance doubled | 60px → 120px |
-| Probe | 4 | Salvager's Kiss | Probe can target live enemies. Tether damage kills enemy, which becomes a wreck mid-tether. Normal tier rules apply from kill moment. Tether timer continues after kill for tier purposes. | Damage scales with tether duration. |
+| Probe | 3 | Infiltration | Mid-tether (0.5s to 1.5s) on a live enemy triggers a hack. Hacked enemy fires one burst on its nearest ally then returns to normal. Below 0.5s tether: probe bounces back, no effect, no cooldown. Above 1.5s with Salvager's Kiss: transitions into damage territory. | Hack requires 0.5s minimum tether on live enemy |
+| Probe | 4 | Salvager's Kiss | Long tether (1.5s+) on live enemy damages and kills it. Enemy becomes a wreck mid-tether. Tier rules apply from kill moment. Tether timer continues after kill for tier purposes. | Damage scales with tether duration. |
 | Mobility | 1 | Thruster Boost | +20% max move speed | 320 → 384 px/s |
 | Mobility | 2 | Slip Drive | Probe button in IDLE state triggers i-frame dash in movement direction | Distance 120px, duration 80ms, cooldown 1500ms, i-frames during dash |
 | Mobility | 3 | Weightless | Deceleration doubled + vertical constraint removed | 2400 → 4800 px/s² deceleration. Player can move full canvas vertically. |
 | Mobility | 4 | Phase Shift | Each time HP drops to exactly 1, enter 3-second ghost mode (no bullet damage) | Triggers per HP-drop-to-1 event, not once per run |
 | Salvage | 1 | Scrap Sense | Wrecks pulse with visible glow for 2 seconds after spawning | 2s spawn highlight |
 | Salvage | 2 | Extended Haul | Wreck expiry time increased | 10000ms → 18000ms |
-| Salvage | 3 | Opportunist | Grunts have 25% drop chance on death (auto-collect pickup) | 25% drop rate, flagged as test value requiring playtest tuning |
+| Salvage | 3 | Integrity Survey | Reveals class-specific design flaw weak points on enemy hulls for enemy classes the player has probed in any prior run. Weak points take 1.5x damage. Visual: subtle structural indicator on sprite, not a glowing dot. First run: nothing revealed even with node active. | 1.5x damage to revealed weak points |
 | Salvage | 4 | Deep Salvage | Tier 1 and Tier 2 probe returns upgraded one tier for offer purposes | Tier 1 tether → uncommon pool, Tier 2 tether → rare pool, Tier 3 unchanged |
 
 ### Cross-branch synergies (intentional)
@@ -163,6 +163,7 @@ All prototype values felt right after 20+ runs. Locked in.
 | Quick Recall + Deep Salvage | Probe + Salvage | Fast probes hit uncommon pool. Short cooldown means more frequent offers. |
 | Static Shielding + Weightless | Defense + Mobility | Move freely across full canvas, absorb hits intentionally to trigger shock pulse. |
 | Hull Memory + Phoenix Protocol | Defense + Defense | Slow regen keeps HP from sitting at 1 after Phoenix triggers. |
+| Integrity Survey + Infiltration | Salvage + Probe | Hacked enemy targets ally weak points with its burst fire. Chaos with intelligence behind it. |
 
 ### Post-MVP notes
 
