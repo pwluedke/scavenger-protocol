@@ -214,6 +214,7 @@ MVP = single biome, single boss, clean slate per run, probe mechanic plus 20-nod
 
 ## Known Gotchas
 Running memory of things that wasted 30+ minutes. Add to this list as issues are discovered.
+- Vite generates a .vite/ cache directory on first dev server run. Add to .gitignore immediately after scaffold. (did not waste time at all, other than running a one line fix to add to .gitignore)
 
 - (populate as we go)
 
