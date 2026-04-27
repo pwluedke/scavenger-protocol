@@ -8,11 +8,17 @@ export enum LogicalAction {
   CANCEL_PROBE,
   PAUSE,
   DASH,
+  RETICLE_LEFT,
+  RETICLE_RIGHT,
+  RETICLE_UP,
+  RETICLE_DOWN,
 }
 
 export interface InputState {
   moveX: number;
   moveY: number;
+  reticleX: number;
+  reticleY: number;
   fire: boolean;
   probe: boolean;
   cancelProbe: boolean;
@@ -36,6 +42,8 @@ const DEADZONE = 0.15;
 const IDLE_STATE: InputState = {
   moveX: 0,
   moveY: 0,
+  reticleX: 0,
+  reticleY: 0,
   fire: false,
   probe: false,
   cancelProbe: false,
@@ -73,12 +81,24 @@ function stateFromKeyboard(heldKeys: Set<string>): InputState {
   moveX = Math.max(-1, Math.min(1, moveX));
   moveY = Math.max(-1, Math.min(1, moveY));
   const [nx, ny] = normalize(moveX, moveY);
+
+  let reticleX = 0;
+  let reticleY = 0;
+  if (heldKeys.has('j') || heldKeys.has('J')) reticleX -= 1;
+  if (heldKeys.has('l') || heldKeys.has('L')) reticleX += 1;
+  if (heldKeys.has('i') || heldKeys.has('I')) reticleY -= 1;
+  if (heldKeys.has('k') || heldKeys.has('K')) reticleY += 1;
+  reticleX = Math.max(-1, Math.min(1, reticleX));
+  reticleY = Math.max(-1, Math.min(1, reticleY));
+
   return {
     moveX: nx,
     moveY: ny,
-    fire: heldKeys.has(' ') || heldKeys.has('j') || heldKeys.has('J'),
-    probe: heldKeys.has('e') || heldKeys.has('E'),
-    cancelProbe: heldKeys.has('q') || heldKeys.has('Q'),
+    reticleX,
+    reticleY,
+    fire: heldKeys.has(' '),
+    probe: heldKeys.has('u') || heldKeys.has('U'),
+    cancelProbe: heldKeys.has('o') || heldKeys.has('O'),
     pause: heldKeys.has('Escape'),
     dash: false,
   };
@@ -88,9 +108,13 @@ function stateFromGamepad(gp: Gamepad): InputState {
   const rawX = applyDeadzone(gp.axes[0] ?? 0);
   const rawY = applyDeadzone(gp.axes[1] ?? 0);
   const [moveX, moveY] = normalize(rawX, rawY);
+  const reticleX = applyDeadzone(gp.axes[2] ?? 0);
+  const reticleY = applyDeadzone(gp.axes[3] ?? 0);
   return {
     moveX,
     moveY,
+    reticleX,
+    reticleY,
     fire: gp.buttons[7]?.pressed ?? false,
     probe: gp.buttons[2]?.pressed ?? false,
     cancelProbe: gp.buttons[1]?.pressed ?? false,
@@ -105,7 +129,7 @@ export function createInputManager(): InputManager {
   let activeSource: 'keyboard' | 'gamepad' = 'keyboard';
   let hadKeydownThisFrame = false;
   let prevGamepadButtons: boolean[] = [];
-  let prevRawAxes: [number, number] = [0, 0];
+  let prevRawAxes: [number, number, number, number] = [0, 0, 0, 0];
   let gamepadLoggedOnce = false;
 
   function onKeyDown(e: KeyboardEvent): void {
@@ -146,14 +170,18 @@ export function createInputManager(): InputManager {
     } else if (gp) {
       const rawX = gp.axes[0] ?? 0;
       const rawY = gp.axes[1] ?? 0;
+      const rawRX = gp.axes[2] ?? 0;
+      const rawRY = gp.axes[3] ?? 0;
       const newButtonPress = gp.buttons.some(
         (btn, i) => btn.pressed && !(prevGamepadButtons[i] ?? false)
       );
       const stickCrossed =
         (Math.abs(prevRawAxes[0]) <= DEADZONE && Math.abs(rawX) > DEADZONE) ||
-        (Math.abs(prevRawAxes[1]) <= DEADZONE && Math.abs(rawY) > DEADZONE);
+        (Math.abs(prevRawAxes[1]) <= DEADZONE && Math.abs(rawY) > DEADZONE) ||
+        (Math.abs(prevRawAxes[2]) <= DEADZONE && Math.abs(rawRX) > DEADZONE) ||
+        (Math.abs(prevRawAxes[3]) <= DEADZONE && Math.abs(rawRY) > DEADZONE);
       if (newButtonPress || stickCrossed) activeSource = 'gamepad';
-      prevRawAxes = [rawX, rawY];
+      prevRawAxes = [rawX, rawY, rawRX, rawRY];
     }
 
     hadKeydownThisFrame = false;
