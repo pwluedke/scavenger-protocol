@@ -40,10 +40,10 @@ function releaseKey(key: string) {
 }
 
 describe('input -- justPressed edge detection', () => {
-  it('PROBE appears in justPressed on the frame K is pressed', () => {
+  it('PROBE appears in justPressed on the frame U is pressed', () => {
     mockGamepads(null);
     const mgr = createInputManager();
-    pressKey('k');
+    pressKey('u');
     const frame = mgr.update();
     expect(frame.justPressed.has(LogicalAction.PROBE)).toBe(true);
     mgr.dispose();
@@ -52,7 +52,7 @@ describe('input -- justPressed edge detection', () => {
   it('PROBE is not in justPressed on subsequent frames without a new keydown', () => {
     mockGamepads(null);
     const mgr = createInputManager();
-    pressKey('k');
+    pressKey('u');
     mgr.update();
     const frame = mgr.update();
     expect(frame.justPressed.has(LogicalAction.PROBE)).toBe(false);
@@ -77,10 +77,10 @@ describe('input -- justPressed edge detection', () => {
     mgr.dispose();
   });
 
-  it('CANCEL_PROBE appears in justPressed on L press', () => {
+  it('CANCEL_PROBE appears in justPressed on O press', () => {
     mockGamepads(null);
     const mgr = createInputManager();
-    pressKey('l');
+    pressKey('o');
     const frame = mgr.update();
     expect(frame.justPressed.has(LogicalAction.CANCEL_PROBE)).toBe(true);
     mgr.dispose();
@@ -210,7 +210,7 @@ describe('input -- last-input-wins source switching', () => {
     // Simulate disconnect
     window.dispatchEvent(new Event('gamepaddisconnected'));
     mockGamepads(null);
-    pressKey('k');
+    pressKey('u');
     const { current } = mgr.update();
     expect(current.probe).toBe(true); // keyboard source after disconnect
     mgr.dispose();

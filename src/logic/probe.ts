@@ -66,8 +66,8 @@ export function updateReticle(
 ): ReticleState {
   const dt = deltaMs / 1000;
   return {
-    x: Math.max(0, Math.min(CANVAS_WIDTH, reticle.x + input.moveX * RETICLE_SPEED * dt)),
-    y: Math.max(0, Math.min(CANVAS_HEIGHT, reticle.y + input.moveY * RETICLE_SPEED * dt)),
+    x: Math.max(0, Math.min(CANVAS_WIDTH, reticle.x + input.reticleX * RETICLE_SPEED * dt)),
+    y: Math.max(0, Math.min(CANVAS_HEIGHT, reticle.y + input.reticleY * RETICLE_SPEED * dt)),
   };
 }
 

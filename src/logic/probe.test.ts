@@ -12,7 +12,7 @@ import {
 import type { InputState } from '../systems/input';
 
 const IDLE_INPUT: InputState = {
-  moveX: 0, moveY: 0, fire: false, probe: false, cancelProbe: false, pause: false, dash: false,
+  moveX: 0, moveY: 0, reticleX: 0, reticleY: 0, fire: false, probe: false, cancelProbe: false, pause: false, dash: false,
 };
 
 function withInput(overrides: Partial<InputState>): InputState {
@@ -208,23 +208,23 @@ describe('probeTakeHit', () => {
 describe('reticle', () => {
   it('moves at RETICLE_SPEED (480 px/s)', () => {
     const reticle = createReticle();
-    const after = updateReticle(reticle, withInput({ moveX: 1 }), 1000);
+    const after = updateReticle(reticle, withInput({ reticleX: 1 }), 1000);
     expect(after.x).toBeCloseTo(reticle.x + 480, 0);
   });
 
   it('clamps x to canvas bounds (0 to 1280)', () => {
     const atRight = { x: 1279, y: 360 };
-    expect(updateReticle(atRight, withInput({ moveX: 1 }), 1000).x).toBe(1280);
+    expect(updateReticle(atRight, withInput({ reticleX: 1 }), 1000).x).toBe(1280);
 
     const atLeft = { x: 1, y: 360 };
-    expect(updateReticle(atLeft, withInput({ moveX: -1 }), 1000).x).toBe(0);
+    expect(updateReticle(atLeft, withInput({ reticleX: -1 }), 1000).x).toBe(0);
   });
 
   it('clamps y to canvas bounds (0 to 720)', () => {
     const atBottom = { x: 640, y: 719 };
-    expect(updateReticle(atBottom, withInput({ moveY: 1 }), 1000).y).toBe(720);
+    expect(updateReticle(atBottom, withInput({ reticleY: 1 }), 1000).y).toBe(720);
 
     const atTop = { x: 640, y: 1 };
-    expect(updateReticle(atTop, withInput({ moveY: -1 }), 1000).y).toBe(0);
+    expect(updateReticle(atTop, withInput({ reticleY: -1 }), 1000).y).toBe(0);
   });
 });

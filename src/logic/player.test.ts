@@ -2,7 +2,7 @@ import { createPlayer, updatePlayer, PlayerState } from './player';
 import type { InputState } from '../systems/input';
 
 const IDLE: InputState = {
-  moveX: 0, moveY: 0, fire: false, probe: false, cancelProbe: false, pause: false, dash: false,
+  moveX: 0, moveY: 0, reticleX: 0, reticleY: 0, fire: false, probe: false, cancelProbe: false, pause: false, dash: false,
 };
 
 function withInput(overrides: Partial<InputState>): InputState {

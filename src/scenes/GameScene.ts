@@ -81,10 +81,8 @@ export class GameScene extends Phaser.Scene {
 
     const prevProbeStatus = this.probeState.status;
 
-    // Reticle uses raw delta so it moves at full speed during slow-mo
-    if (prevProbeStatus === 'TARGETING') {
-      this.reticleState = updateReticle(this.reticleState, inputFrame.current, this.rawDeltaMs);
-    }
+    // Reticle always updates using raw delta (dedicated IJKL / right stick, not slow-mo affected)
+    this.reticleState = updateReticle(this.reticleState, inputFrame.current, this.rawDeltaMs);
 
     const probeJustPressed = inputFrame.justPressed.has(LogicalAction.PROBE);
     this.probeState = updateProbe(

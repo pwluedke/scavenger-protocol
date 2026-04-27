@@ -43,10 +43,11 @@ This identity governs every design decision: art direction, upgrade design, narr
 | Action | PS / Xbox Controller | Keyboard |
 |---|---|---|
 | Move | Left stick | WASD / arrows |
-| Fire | R2 / RT | Space / J |
-| Probe fire / confirm target / recall | Square / X | K |
-| Cancel probe target (during slow-mo) | Circle / B | L |
-| Dash (Slip Drive node, probe button in IDLE) | Square / X | K |
+| Move reticle | Right stick | IJKL |
+| Fire | R2 / RT | Space |
+| Probe fire / confirm target / recall | Square / X | U |
+| Cancel probe target (during slow-mo) | Circle / B | O |
+| Dash (Slip Drive node, probe button in IDLE) | Square / X | U |
 | Pause | Options / Menu | Esc |
 | Reset (prototype only, removed in real game) | View button | R |
 
