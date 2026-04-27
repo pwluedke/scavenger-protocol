@@ -6,6 +6,7 @@ export const PROBE_HP = 3;
 const RETICLE_SPEED = 480;
 export const COOLDOWN_RETURN_MS = 3000;
 export const COOLDOWN_DESTROYED_MS = 8000;
+export const TARGETING_MAX_MS = 3000;
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
 
@@ -31,6 +32,7 @@ export interface ProbeState {
   rewardTier: number;
   rewardFlashEndMs: number;
   emptyReturn: boolean;
+  targetingStartMs: number;
 }
 
 export interface ReticleState {
@@ -52,6 +54,7 @@ export function createProbe(): ProbeState {
     rewardTier: 0,
     rewardFlashEndMs: 0,
     emptyReturn: false,
+    targetingStartMs: 0,
   };
 }
 
@@ -101,12 +104,15 @@ export function updateProbe(
   switch (probe.status) {
     case 'IDLE': {
       if (probeJustPressed) {
-        return { ...probe, status: 'TARGETING', hp: PROBE_HP };
+        return { ...probe, status: 'TARGETING', hp: PROBE_HP, targetingStartMs: timestamp };
       }
       return probe;
     }
 
     case 'TARGETING': {
+      if (timestamp - probe.targetingStartMs >= TARGETING_MAX_MS) {
+        return { ...probe, status: 'IDLE' };
+      }
       if (input.cancelProbe) {
         return { ...probe, status: 'IDLE' };
       }

@@ -8,6 +8,7 @@ import {
   createReticle,
   updateReticle,
   ReticleState,
+  TARGETING_MAX_MS,
 } from '../logic/probe';
 import { ASSETS } from '../config/assets';
 
@@ -25,6 +26,7 @@ export class GameScene extends Phaser.Scene {
   private scrollImages: Phaser.GameObjects.Image[] = [];
   private graphics!: Phaser.GameObjects.Graphics;
   private flashText!: Phaser.GameObjects.Text;
+  private targetingTimerText!: Phaser.GameObjects.Text;
   private scrollY = 0;
   private currentScrollSpeed = SCROLL_SPEED;
   private effectiveDeltaMs = 0;
@@ -57,6 +59,10 @@ export class GameScene extends Phaser.Scene {
       .text(640, 360, '', { fontSize: '32px', color: '#00ffff' })
       .setOrigin(0.5)
       .setVisible(false);
+    this.targetingTimerText = this.add
+      .text(0, 0, '', { fontSize: '16px', color: '#00ffff' })
+      .setOrigin(0.5)
+      .setVisible(false);
   }
 
   update(time: number, delta: number): void {
@@ -77,7 +83,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLogic(inputFrame: InputFrame, effectiveDeltaMs: number, timestamp: number): void {
-    this.playerState = updatePlayer(this.playerState, inputFrame.current, effectiveDeltaMs, timestamp);
+    this.playerState = updatePlayer(this.playerState, inputFrame.current, effectiveDeltaMs);
 
     const prevProbeStatus = this.probeState.status;
 
@@ -128,10 +134,16 @@ export class GameScene extends Phaser.Scene {
 
     this.graphics.clear();
 
-    // Reticle ring (TARGETING)
+    // Reticle ring + countdown (TARGETING)
     if (probe.status === 'TARGETING') {
       this.graphics.lineStyle(2, 0x00ffff);
       this.graphics.strokeCircle(reticle.x, reticle.y, 8);
+      const remaining = TARGETING_MAX_MS - (ts - probe.targetingStartMs);
+      this.targetingTimerText.setText(Math.ceil(remaining / 1000) + 's');
+      this.targetingTimerText.setPosition(reticle.x, reticle.y - 20);
+      this.targetingTimerText.setVisible(true);
+    } else {
+      this.targetingTimerText.setVisible(false);
     }
 
     // Probe body (LAUNCHED, RETURNING, TETHERED)

@@ -8,6 +8,7 @@ import {
   PROBE_HP,
   COOLDOWN_RETURN_MS,
   COOLDOWN_DESTROYED_MS,
+  TARGETING_MAX_MS,
 } from './probe';
 import type { InputState } from '../systems/input';
 
@@ -74,7 +75,7 @@ describe('IDLE', () => {
 });
 
 describe('TARGETING', () => {
-  const targeting: ProbeState = { ...createProbe(), status: 'TARGETING' };
+  const targeting: ProbeState = { ...createProbe(), status: 'TARGETING', targetingStartMs: 0 };
 
   it('transitions to IDLE on cancelProbe', () => {
     const after = step(targeting, { input: withInput({ cancelProbe: true }) });
@@ -91,8 +92,13 @@ describe('TARGETING', () => {
     expect(after.emptyReturn).toBe(true);
   });
 
-  it('stays TARGETING with no input', () => {
-    expect(step(targeting).status).toBe('TARGETING');
+  it('transitions to IDLE when targeting times out', () => {
+    const after = step(targeting, { timestamp: TARGETING_MAX_MS });
+    expect(after.status).toBe('IDLE');
+  });
+
+  it('stays TARGETING with no input before timeout', () => {
+    expect(step(targeting, { timestamp: TARGETING_MAX_MS - 1 }).status).toBe('TARGETING');
   });
 });
 

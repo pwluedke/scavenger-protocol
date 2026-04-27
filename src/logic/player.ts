@@ -22,19 +22,18 @@ export interface PlayerState {
   vx: number;
   vy: number;
   hp: number;
-  lastFireMs: number;
+  fireTimer: number;
   bullets: Bullet[];
 }
 
 export function createPlayer(): PlayerState {
-  return { x: 640, y: 630, vx: 0, vy: 0, hp: 3, lastFireMs: Number.NEGATIVE_INFINITY, bullets: [] };
+  return { x: 640, y: 630, vx: 0, vy: 0, hp: 3, fireTimer: 0, bullets: [] };
 }
 
 export function updatePlayer(
   state: PlayerState,
   input: InputState,
   deltaMs: number,
-  timestamp: number,
 ): PlayerState {
   const dt = deltaMs / 1000;
 
@@ -81,13 +80,13 @@ export function updatePlayer(
   y = Math.max(Y_MIN, Math.min(Y_MAX, y));
 
   // Shooting
-  let { lastFireMs } = state;
+  let fireTimer = state.fireTimer + deltaMs;
   let bullets = state.bullets.map((b) => ({ x: b.x, y: b.y - BULLET_SPEED * dt })).filter((b) => b.y >= -10);
 
-  if (input.fire && timestamp - lastFireMs >= FIRE_RATE_MS) {
+  if (input.fire && fireTimer >= FIRE_RATE_MS) {
     bullets = [...bullets, { x, y }];
-    lastFireMs = timestamp;
+    fireTimer = 0;
   }
 
-  return { x, y, vx, vy, hp: state.hp, lastFireMs, bullets };
+  return { x, y, vx, vy, hp: state.hp, fireTimer, bullets };
 }
