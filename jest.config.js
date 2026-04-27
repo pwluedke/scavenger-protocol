@@ -1,5 +1,3 @@
-import type { Config } from 'jest';
-
 export default {
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
@@ -15,4 +13,4 @@ export default {
       functions: 80,
     },
   },
-} satisfies Config;
+};
