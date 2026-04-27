@@ -77,8 +77,8 @@ function stateFromKeyboard(heldKeys: Set<string>): InputState {
     moveX: nx,
     moveY: ny,
     fire: heldKeys.has(' ') || heldKeys.has('j') || heldKeys.has('J'),
-    probe: heldKeys.has('e') || heldKeys.has('E'),
-    cancelProbe: heldKeys.has('q') || heldKeys.has('Q'),
+    probe: heldKeys.has('k') || heldKeys.has('K'),
+    cancelProbe: heldKeys.has('l') || heldKeys.has('L'),
     pause: heldKeys.has('Escape'),
     dash: false,
   };

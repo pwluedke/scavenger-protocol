@@ -44,9 +44,9 @@ This identity governs every design decision: art direction, upgrade design, narr
 |---|---|---|
 | Move | Left stick | WASD / arrows |
 | Fire | R2 / RT | Space / J |
-| Probe fire / confirm target / recall | Square / X | E |
-| Cancel probe target (during slow-mo) | Circle / B | Q |
-| Dash (Slip Drive node, probe button in IDLE) | Square / X | E |
+| Probe fire / confirm target / recall | Square / X | K |
+| Cancel probe target (during slow-mo) | Circle / B | L |
+| Dash (Slip Drive node, probe button in IDLE) | Square / X | K |
 | Pause | Options / Menu | Esc |
 | Reset (prototype only, removed in real game) | View button | R |
 
