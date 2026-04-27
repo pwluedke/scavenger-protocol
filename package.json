@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "jest",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:e2e": "playwright test",
     "lint": "eslint src"
   },
@@ -20,6 +20,7 @@
     "@types/node": "^25.6.0",
     "eslint": "^10.2.1",
     "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
     "typescript": "^6.0.3",
     "vite": "^8.0.10"
   }
