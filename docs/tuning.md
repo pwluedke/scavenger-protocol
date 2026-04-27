@@ -125,7 +125,7 @@ All prototype values felt right after 20+ runs. Locked in.
 | Pool | Nodes |
 |---|---|
 | Common (Tier 1 tether, 0-1.5s) | Pellet Drive, Plating, Reinforced Tether, Thruster Boost, Scrap Sense |
-| Uncommon (Tier 2 tether, 1.5-3s) | Twin Shot, Hull Memory, Quick Recall, Slip Drive, Extended Haul, Piercing Rounds, Static Shielding, Integrity Survey, Weightless |
+| Uncommon (Tier 2 tether, 1.5-3s) | Twin Shot, Hull Memory, Quick Recall, Slip Drive, Extended Haul, Piercing Rounds, Static Shielding, Infiltration, Integrity Survey, Weightless |
 | Rare (Tier 3 tether, 3s+) | Salvo, Phoenix Protocol, Salvager's Kiss, Phase Shift, Deep Salvage |
 
 ### Full node table
