@@ -63,7 +63,7 @@ export class GameScene extends Phaser.Scene {
     const dt = this.effectiveDeltaMs / 1000;
 
     if (ASSETS.backgroundMode === 'tile') {
-      this.scrollY += this.currentScrollSpeed * dt;
+      this.scrollY -= this.currentScrollSpeed * dt;
       this.background.tilePositionY = this.scrollY;
     } else {
       const tex = this.textures.get(ASSETS.background);
