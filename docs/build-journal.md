@@ -251,7 +251,90 @@ Paul closes Epic #2 manually on GitHub. Vega writes a /issue prompt for Gloom to
 
 --
 
+## Entry 04: Full scaffold built and deployed in one day
 
+**Date range:** April 25-26, 2026 (one day after Entry 03)
+**Personas involved:** Paul (engineering lead), Vega (strategy), Gloom (implementation)
+**Artifacts produced:** Vite + Phaser 3.90 project, seeded RNG module, input mapping layer, game loop and scene shell, GitHub Actions CI pipeline, Netlify deploy at scavenger.somanygames.app
+
+### Context
+
+Entry 03 ended with the probe-feel prototype verdict locked as GO and the design pass 2 complete. Entry 04 covers the scaffold build the following day: seven sequential issues executed, producing a live URL with a working Phaser game instance, full CI pipeline, and branch protection.
+
+### What was built
+
+Seven issues executed in strict sequence, each depending on the previous:
+
+**Issue A: Vite + Phaser 3 scaffold**
+Initialized the project with Vite vanilla TypeScript, Phaser 3.90.0 pinned explicitly (npm latest resolves to Phaser 4, which Gloom caught and flagged before implementing), 1280x720 canvas with FIT scaling, and a BootScene stub. First dev server run produced a black canvas with Phaser's startup banner confirming the correct version.
+
+**Issue B: Directory structure and logic/render separation**
+22 stub files across 5 directories enforcing the architecture from day one. Every file in `src/logic/` got the mandatory comment: "NO Phaser imports. NO DOM. NO Math.random(). NO Date.now(). Deterministic given inputs." Verification included a grep confirming no Phaser imports or Math.random calls in the logic layer.
+
+**Issue C: Seeded RNG module**
+Custom xorshift128+ implementation chosen over seedrandom library for full auditability. String seeds hashed via djb2 with four salts. Jest configured with ts-jest in ESM mode. 14 tests covering determinism (1000-call sequence comparison), distribution, edge cases, and clone independence. This module is the foundation of all deterministic behavior downstream.
+
+**Issue D: Input mapping layer**
+Single source of truth for all player input. Keyboard and Gamepad API both produce identical LogicalActions. Last-input-wins switching between sources. Diagonal normalization. jsdom per-file test environment for faithful DOM event simulation. Gloom independently identified and correctly resolved the DASH enum question: E always emits probe: true from the input layer; game logic decides whether that means probe or dash based on game state. Logic layer context does not bleed into the input layer.
+
+**Issue E: Game loop and scene shell**
+Five scenes wired up: BootScene transitions to MenuScene, MenuScene shows "SCAVENGER PROTOCOL" and "Press any key to begin Protocol," GameScene has effectiveDelta slow-mo support and setSlowMo() method ready for the probe state machine. Gamepad detection in MenuScene uses direct navigator.getGamepads() polling rather than the Phaser gamepad plugin, keeping config minimal.
+
+**Issue F: GitHub Actions CI pipeline**
+Five jobs: lint, typecheck, unit, e2e, build. ESLint flat config with typescript-eslint. Playwright smoke test with Page Object Model. Jest coverage threshold at 80% on src/logic/. Branch protection ruleset configured in GitHub with all five checks required before merge. Two corrective issues required: missing ESLint rules (no-explicit-any warn, no-console off) caught by /review Pass 1, and jest.config.ts requiring ts-node in CI caught by the first CI run. Both resolved cleanly. The /review command's Pass 1 blocking behavior justified itself on the first real use.
+
+**Issue G: Netlify deploy**
+Pure static site, independent from Session Zero's Railway infrastructure. netlify.toml in repo root, Netlify reads it automatically on connection with no dashboard configuration needed. DNS setup via Porkbun: TXT record for subdomain ownership verification, CNAME record pointing scavenger to the Netlify-assigned subdomain. SSL provisioned automatically via Let's Encrypt after DNS verification. Total time from Netlify account connection to live HTTPS URL: under 30 minutes.
+
+### Decisions made
+
+**1280x720 over 480x270 for render resolution.**
+Original design doc specified 480x270 (classic pixel art resolution). Changed during scaffold planning after Paul pushed back: the realism mandate from the watchlist session conflicts with a resolution that forces chunky visible pixels. 1280x720 allows both clean high-resolution rendering and deliberate blocky pixel art sprites scaled up on the canvas. The resolution and the art style are independent decisions.
+
+**Custom xorshift128+ over seedrandom library.**
+The RNG module is load-bearing for the entire project (seeded runs, Playwright replay, simulation harness). Having every line auditable outweighs the convenience of an external dependency. Zero supply chain surface on the most critical module.
+
+**ts-jest ESM mode over babel-jest.**
+Type-checked tests are non-negotiable given strict TypeScript everywhere. The experimental-vm-modules flag has been stable since Node 18. Fewer dependencies than the babel alternative.
+
+**Netlify over Railway for static hosting.**
+Session Zero runs on Railway with a Node server. Scavenger Protocol has no backend. Independent static deploy on Netlify means independent release cycles, free tier, and PR preview deployments. Separation of concerns between the two projects.
+
+**CNAME over ALIAS for subdomain DNS.**
+The root domain ALIAS gotcha (documented in Session Zero's decisions) does not apply to subdomains. CNAME is correct for scavenger.somanygames.app. Filed as a Known Gotcha in CLAUDE.md.
+
+### Process observations
+
+**The /review command earned its keep immediately.**
+Issue F's first /review returned CHANGES REQUESTED on Pass 1: two ESLint rules explicitly in the AC were missing from the implementation. The PR was clean on every other dimension. Without Pass 1 blocking merge, those rules would have silently landed without the no-explicit-any warning or the no-console disable. The blocking behavior is correct behavior.
+
+**CI caught a real environment bug.**
+jest.config.ts requiring ts-node works locally because ts-node happens to be installed globally on Paul's machine. CI is a clean environment. The failure on the first CI run caught an invisible local/CI environment mismatch that would have blocked every future PR. Resolved by converting jest.config.ts to jest.config.js, no new dependencies.
+
+**Gloom's plan quality continued to compound.**
+By Issue D, Gloom was independently identifying and correctly resolving architectural questions (DASH enum, jsdom vs dependency injection) that weren't in the original spec. The context built across sequential issues produces better plans than any single-issue engagement.
+
+**76 hours from first conversation to live URL.**
+This conversation started April 23 at 5:00 PM. The live HTTPS URL at scavenger.somanygames.app was confirmed working April 26 at approximately 9:45 PM. In that window: concept design, probe prototype build and verdict, two-AI workflow established, full scaffold with CI, branch protection, seeded RNG, input mapping, game loop, and auto-deploy on every merge. 76 hours from "I want to build a game" to a deployed, tested, production-ready foundation at a real domain.
+
+### What got deferred
+
+- Playwright full-run smoke test with seeded determinism (deferred until GameScene has real game logic)
+- Simulation harness (deferred until logic layer modules are implemented)
+- Pi kiosk deployment (post-MVP)
+- PR preview deploy verification (will be tested organically on the next gameplay PR)
+
+### Open at end of entry
+
+1. design-doc.md v0.3 PR still needs to be created and merged (design doc on disk is still v0.2; v0.3 was drafted by Vega but not yet committed via Gloom)
+2. tuning.md is committed but reflects the original branch design; Probe and Salvage branch redesigns from the recent design session need a tuning.md update PR
+3. Ideas parking lot (docs/ideas.md) has not been created in the repo yet; the document exists in Vega's session but has not been committed
+
+### Next step
+
+Player ship implementation: movement with inertia, horizontal wrap with Loop Drive visual, shooting. First real logic layer code in src/logic/. Validates the logic/render separation pattern that all subsequent gameplay issues follow.
+
+---
 
 
 Entry template (copy for future entries)
