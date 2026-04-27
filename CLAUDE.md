@@ -215,6 +215,8 @@ MVP = single biome, single boss, clean slate per run, probe mechanic plus 20-nod
 ## Known Gotchas
 Running memory of things that wasted 30+ minutes. Add to this list as issues are discovered.
 - Vite generates a .vite/ cache directory on first dev server run. Add to .gitignore immediately after scaffold. (did not waste time at all, other than running a one line fix to add to .gitignore)
+- Scavenger Protocol is hosted on Netlify (static). Session Zero is hosted on Railway (Node server). These are independent. Do not conflate their deploy processes.
+- DNS for somanygames.app subdomains is managed in Porkbun. CNAME records for subdomains are correct (no ALIAS needed for subdomains).
 
 - (populate as we go)
 
