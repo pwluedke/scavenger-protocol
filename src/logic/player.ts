@@ -4,7 +4,7 @@ import type { InputState } from '../systems/input';
 const BULLET_SPEED = 600;
 const PLAYER_SPEED = 320;
 const ACCELERATION = 1600;
-const DECELERATION = 2400;
+const DECELERATION = 800;
 const FIRE_RATE_MS = 200;
 
 const Y_MIN = 432;
