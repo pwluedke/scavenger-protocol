@@ -38,6 +38,15 @@ State one of:
 
 Never approve a PR that fails Pass 1. A well-written PR that doesn't meet the spec is not done.
 
-After both passes complete, end your output with:
+After both passes complete, end your output with one of:
+
+If APPROVED:
+"## Manual verification
+[List the specific browser checks for this PR, derived from the PR description and AC]
+
+Run `/test [N]` to start the dev server for manual verification. PR #N is open. After you verify and merge on GitHub, run `/merged N` to sync locally."
+
+If CHANGES REQUESTED or QUESTION:
 "PR #N is open. After you merge it on GitHub, run `/merged N` to sync locally."
+
 Use the actual PR number obtained via `gh pr view --json number`.
