@@ -22,7 +22,7 @@ Single forward shot. Maximum design space for progression to add multishot, spre
 | Hitbox size | 16 x 16 px | Smaller than 48 x 48 visible sprite. Touhou-style core hitbox. |
 | Max move speed | 320 px/s | Slower than prototype's 400 because inertia plus analog stick reduces overshoot need. |
 | Acceleration | 1600 px/s² | Reaches max speed in ~0.2s from standstill. |
-| Deceleration | 2400 px/s² | Stops faster than starts. Decisive stops. |
+| Deceleration | 800 px/s² | A bit drifty. On first test after scaffolding, changed from 2400 to 800. Will likely tune more.|
 | Y movement bound | bottom 35% of canvas | More room than prototype's 30%, allowing upward dodge into bullet patterns. |
 | Bullet damage | 10 | Round number for clean progression scaling. |
 | Fire rate | 200 ms (5 shots/sec) | Same as prototype, felt right. |
