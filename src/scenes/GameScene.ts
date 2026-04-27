@@ -27,6 +27,7 @@ export class GameScene extends Phaser.Scene {
   private graphics!: Phaser.GameObjects.Graphics;
   private flashText!: Phaser.GameObjects.Text;
   private targetingTimerText!: Phaser.GameObjects.Text;
+  private scanCooldownText!: Phaser.GameObjects.Text;
   private scrollY = 0;
   private currentScrollSpeed = SCROLL_SPEED;
   private effectiveDeltaMs = 0;
@@ -60,8 +61,12 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setVisible(false);
     this.targetingTimerText = this.add
-      .text(0, 0, '', { fontSize: '16px', color: '#00ffff' })
+      .text(0, 0, '', { fontSize: '14px', fontFamily: 'monospace', color: '#ffffff' })
       .setOrigin(0.5)
+      .setVisible(false);
+    this.scanCooldownText = this.add
+      .text(20, 20, 'SCAN COOLDOWN', { fontSize: '12px', fontFamily: 'monospace', color: '#888888' })
+      .setOrigin(0, 0)
       .setVisible(false);
   }
 
@@ -134,16 +139,23 @@ export class GameScene extends Phaser.Scene {
 
     this.graphics.clear();
 
-    // Reticle ring + countdown (TARGETING)
+    // Reticle ring + countdown (TARGETING) / scan cooldown indicator (TARGETING_COOLDOWN)
     if (probe.status === 'TARGETING') {
       this.graphics.lineStyle(2, 0x00ffff);
       this.graphics.strokeCircle(reticle.x, reticle.y, 8);
-      const remaining = TARGETING_MAX_MS - (ts - probe.targetingStartMs);
-      this.targetingTimerText.setText(Math.ceil(remaining / 1000) + 's');
-      this.targetingTimerText.setPosition(reticle.x, reticle.y - 20);
+      const remaining = Math.max(0, TARGETING_MAX_MS - (ts - probe.targetingStartMs));
+      const color = remaining < 500 ? '#ff0000' : remaining < 1500 ? '#ffff00' : '#ffffff';
+      this.targetingTimerText.setText(Math.floor(remaining).toString());
+      this.targetingTimerText.setColor(color);
+      this.targetingTimerText.setPosition(reticle.x, reticle.y - 24);
       this.targetingTimerText.setVisible(true);
+      this.scanCooldownText.setVisible(false);
+    } else if (probe.status === 'TARGETING_COOLDOWN') {
+      this.targetingTimerText.setVisible(false);
+      this.scanCooldownText.setVisible(true);
     } else {
       this.targetingTimerText.setVisible(false);
+      this.scanCooldownText.setVisible(false);
     }
 
     // Probe body (LAUNCHED, RETURNING, TETHERED)

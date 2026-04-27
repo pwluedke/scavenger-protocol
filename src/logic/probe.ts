@@ -7,12 +7,15 @@ const RETICLE_SPEED = 480;
 export const COOLDOWN_RETURN_MS = 3000;
 export const COOLDOWN_DESTROYED_MS = 8000;
 export const TARGETING_MAX_MS = 3000;
+export const TARGETING_COOLDOWN_CANCEL_MS = 1500;
+export const TARGETING_COOLDOWN_TIMEOUT_MS = 3000;
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
 
 export type ProbeStatus =
   | 'IDLE'
   | 'TARGETING'
+  | 'TARGETING_COOLDOWN'
   | 'LAUNCHED'
   | 'TETHERED'
   | 'RETURNING'
@@ -33,6 +36,7 @@ export interface ProbeState {
   rewardFlashEndMs: number;
   emptyReturn: boolean;
   targetingStartMs: number;
+  targetingCooldownEndMs: number;
 }
 
 export interface ReticleState {
@@ -55,6 +59,7 @@ export function createProbe(): ProbeState {
     rewardFlashEndMs: 0,
     emptyReturn: false,
     targetingStartMs: 0,
+    targetingCooldownEndMs: 0,
   };
 }
 
@@ -103,7 +108,7 @@ export function updateProbe(
 
   switch (probe.status) {
     case 'IDLE': {
-      if (probeJustPressed) {
+      if (probeJustPressed && timestamp >= probe.targetingCooldownEndMs && timestamp >= probe.cooldownEndMs) {
         return { ...probe, status: 'TARGETING', hp: PROBE_HP, targetingStartMs: timestamp };
       }
       return probe;
@@ -111,10 +116,10 @@ export function updateProbe(
 
     case 'TARGETING': {
       if (timestamp - probe.targetingStartMs >= TARGETING_MAX_MS) {
-        return { ...probe, status: 'IDLE' };
+        return { ...probe, status: 'TARGETING_COOLDOWN', targetingCooldownEndMs: timestamp + TARGETING_COOLDOWN_TIMEOUT_MS };
       }
       if (input.cancelProbe) {
-        return { ...probe, status: 'IDLE' };
+        return { ...probe, status: 'TARGETING_COOLDOWN', targetingCooldownEndMs: timestamp + TARGETING_COOLDOWN_CANCEL_MS };
       }
       if (probeJustPressed) {
         return {
@@ -126,6 +131,13 @@ export function updateProbe(
           targetY: reticleY,
           emptyReturn: true,
         };
+      }
+      return probe;
+    }
+
+    case 'TARGETING_COOLDOWN': {
+      if (timestamp >= probe.targetingCooldownEndMs) {
+        return { ...probe, status: 'IDLE' };
       }
       return probe;
     }

@@ -9,6 +9,8 @@ import {
   COOLDOWN_RETURN_MS,
   COOLDOWN_DESTROYED_MS,
   TARGETING_MAX_MS,
+  TARGETING_COOLDOWN_CANCEL_MS,
+  TARGETING_COOLDOWN_TIMEOUT_MS,
 } from './probe';
 import type { InputState } from '../systems/input';
 
@@ -59,6 +61,7 @@ describe('createProbe', () => {
     expect(p.cooldownEndMs).toBe(0);
     expect(p.cooldownTotalMs).toBe(0);
     expect(p.rewardFlashEndMs).toBe(0);
+    expect(p.targetingCooldownEndMs).toBe(0);
   });
 });
 
@@ -72,14 +75,33 @@ describe('IDLE', () => {
   it('stays IDLE when probe not just pressed', () => {
     expect(step(createProbe()).status).toBe('IDLE');
   });
+
+  it('cannot enter TARGETING while targetingCooldownEndMs has not expired', () => {
+    const blocked: ProbeState = { ...createProbe(), targetingCooldownEndMs: 2000 };
+    const after = step(blocked, { probeJustPressed: true, timestamp: 1999 });
+    expect(after.status).toBe('IDLE');
+  });
+
+  it('can enter TARGETING when targetingCooldownEndMs has expired', () => {
+    const blocked: ProbeState = { ...createProbe(), targetingCooldownEndMs: 2000 };
+    const after = step(blocked, { probeJustPressed: true, timestamp: 2000 });
+    expect(after.status).toBe('TARGETING');
+  });
 });
 
 describe('TARGETING', () => {
   const targeting: ProbeState = { ...createProbe(), status: 'TARGETING', targetingStartMs: 0 };
 
-  it('transitions to IDLE on cancelProbe', () => {
-    const after = step(targeting, { input: withInput({ cancelProbe: true }) });
-    expect(after.status).toBe('IDLE');
+  it('transitions to TARGETING_COOLDOWN on cancelProbe, sets 1500ms cooldown', () => {
+    const after = step(targeting, { input: withInput({ cancelProbe: true }), timestamp: 1000 });
+    expect(after.status).toBe('TARGETING_COOLDOWN');
+    expect(after.targetingCooldownEndMs).toBe(1000 + TARGETING_COOLDOWN_CANCEL_MS);
+  });
+
+  it('transitions to TARGETING_COOLDOWN on timeout, sets 3000ms cooldown', () => {
+    const after = step(targeting, { timestamp: TARGETING_MAX_MS });
+    expect(after.status).toBe('TARGETING_COOLDOWN');
+    expect(after.targetingCooldownEndMs).toBe(TARGETING_MAX_MS + TARGETING_COOLDOWN_TIMEOUT_MS);
   });
 
   it('transitions to LAUNCHED on probeJustPressed (launches to reticle position)', () => {
@@ -92,13 +114,25 @@ describe('TARGETING', () => {
     expect(after.emptyReturn).toBe(true);
   });
 
-  it('transitions to IDLE when targeting times out', () => {
-    const after = step(targeting, { timestamp: TARGETING_MAX_MS });
-    expect(after.status).toBe('IDLE');
+  it('LAUNCHED does not set targetingCooldownEndMs', () => {
+    const after = step(targeting, { probeJustPressed: true });
+    expect(after.targetingCooldownEndMs).toBe(0);
   });
 
   it('stays TARGETING with no input before timeout', () => {
     expect(step(targeting, { timestamp: TARGETING_MAX_MS - 1 }).status).toBe('TARGETING');
+  });
+});
+
+describe('TARGETING_COOLDOWN', () => {
+  it('transitions to IDLE when timestamp >= targetingCooldownEndMs', () => {
+    const tc: ProbeState = { ...createProbe(), status: 'TARGETING_COOLDOWN', targetingCooldownEndMs: 2000 };
+    expect(step(tc, { timestamp: 2000 }).status).toBe('IDLE');
+  });
+
+  it('stays TARGETING_COOLDOWN before targetingCooldownEndMs', () => {
+    const tc: ProbeState = { ...createProbe(), status: 'TARGETING_COOLDOWN', targetingCooldownEndMs: 2000 };
+    expect(step(tc, { timestamp: 1999 }).status).toBe('TARGETING_COOLDOWN');
   });
 });
 
