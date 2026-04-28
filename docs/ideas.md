@@ -688,3 +688,19 @@ These can be swapped for real lore in v1.1 without any code changes.
 **Gradius V confirmed as boss design reference.** Boss battles should feel like solving a puzzle against a specific entity, not surviving a swarm. See Entry 022.
 
 **Status:** HOLD - reference consolidation.
+
+---
+
+## Combat / Firing
+
+### Tap-to-fire override on top of hold-to-fire
+
+Current behavior: fire rate gated by a single timer. Hold and tap both produce the same fixed cadence.
+
+Proposed behavior: hold-to-fire stays as the minimum cadence. Individual button taps fire immediately on press, even if faster than the hold cadence. Each tap resets the hold timer.
+
+Rationale: rewards player input speed. Matches classic arcade shmup feel (Galaga, R-Type). Adds a skill expression layer without changing the base game balance for casual players.
+
+Implementation hook: input.ts already does justPressed edge detection on the fire action, so the tap path is cheap to add. The hold path stays untouched.
+
+Status: parking lot. Not MVP.
