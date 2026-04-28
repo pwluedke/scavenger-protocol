@@ -27,6 +27,7 @@ describe('createPlayer', () => {
     expect(p.hp).toBe(3);
     expect(p.fireTimer).toBe(0);
     expect(p.bullets).toHaveLength(0);
+    expect(p.invulnerabilityEndMs).toBe(0);
   });
 });
 

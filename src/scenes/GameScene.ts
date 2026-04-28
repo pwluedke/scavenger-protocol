@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { createInputManager, InputManager, InputFrame, LogicalAction } from '../systems/input';
-import { createPlayer, updatePlayer, PlayerState } from '../logic/player';
+import { createPlayer, updatePlayer, damagePlayer, PlayerState, PLAYER_HIT_RADIUS } from '../logic/player';
 import {
   createProbe,
   updateProbe,
@@ -10,10 +10,15 @@ import {
   ReticleState,
   TARGETING_MAX_MS,
 } from '../logic/probe';
+import { updateDriftlings, Driftling } from '../logic/enemies';
+import { createSpawner, updateSpawner, SpawnerState } from '../logic/spawner';
+import { bulletEnemyHits, playerEnemyHits } from '../logic/collision';
+import { createRng, Rng } from '../logic/rng';
 import { ASSETS } from '../config/assets';
 import { Player } from '../entities/Player';
 import { Bullets } from '../entities/Bullets';
 import { Probe as ProbeEntity } from '../entities/Probe';
+import { Enemy } from '../entities/Enemy';
 
 const SLOWMO_FACTOR = 0.2;
 // TODO: vary by game state per tuning.md
@@ -31,6 +36,10 @@ export class GameScene extends Phaser.Scene {
   private probeEntity!: ProbeEntity;
   private playerEntity!: Player;
   private bulletsEntity!: Bullets;
+  private driftlings: Driftling[] = [];
+  private spawnerState!: SpawnerState;
+  private spawnerRng!: Rng;
+  private enemyEntity!: Enemy;
   private graphics!: Phaser.GameObjects.Graphics;
   private flashText!: Phaser.GameObjects.Text;
   private targetingTimerText!: Phaser.GameObjects.Text;
@@ -62,7 +71,11 @@ export class GameScene extends Phaser.Scene {
       this.scrollImages = [imgA, imgB];
     }
 
+    this.spawnerState = createSpawner();
+    this.spawnerRng = createRng('run-seed-spawner');
+
     this.probeEntity = new ProbeEntity(this);
+    this.enemyEntity = new Enemy(this);
     this.playerEntity = new Player(this);
     this.bulletsEntity = new Bullets(this);
     this.graphics = this.add.graphics();
@@ -124,6 +137,33 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.setSlowMo(this.probeState.status === 'TARGETING');
+
+    const { state: newSpawner, spawned } = updateSpawner(this.spawnerState, this.spawnerRng, timestamp);
+    this.spawnerState = newSpawner;
+    this.driftlings = [...this.driftlings, ...spawned];
+    this.driftlings = updateDriftlings(this.driftlings, effectiveDeltaMs, timestamp);
+
+    const bHits = bulletEnemyHits(this.playerState.bullets, this.driftlings);
+    const pHits = playerEnemyHits(
+      { x: this.playerState.x, y: this.playerState.y, radius: PLAYER_HIT_RADIUS },
+      this.driftlings,
+    );
+
+    const hitBulletIndices = new Set(bHits.map((h) => h.bulletIndex));
+    const hitByBullet = new Set(bHits.map((h) => h.enemyId));
+    this.playerState = {
+      ...this.playerState,
+      bullets: this.playerState.bullets.filter((_, i) => !hitBulletIndices.has(i)),
+    };
+    this.driftlings = this.driftlings.map((d) =>
+      hitByBullet.has(d.id) ? { ...d, hp: d.hp - 1, alive: d.hp - 1 > 0 } : d,
+    );
+
+    if (pHits.length > 0) {
+      this.playerState = damagePlayer(this.playerState, timestamp);
+      const hitByPlayer = new Set(pHits);
+      this.driftlings = this.driftlings.map((d) => (hitByPlayer.has(d.id) ? { ...d, alive: false } : d));
+    }
   }
 
   private drawScene(): void {
@@ -149,6 +189,7 @@ export class GameScene extends Phaser.Scene {
 
     // Entity rendering -- each entity clears its own Graphics object
     this.probeEntity.update(probe, reticle, ts, this.playerState.x, this.playerState.y);
+    this.enemyEntity.update(this.driftlings);
     this.playerEntity.update(this.playerState);
     this.bulletsEntity.update(this.playerState.bullets);
 
