@@ -12,6 +12,7 @@ import {
 } from '../logic/probe';
 import { ASSETS } from '../config/assets';
 import { Player } from '../entities/Player';
+import { Bullets } from '../entities/Bullets';
 
 const SLOWMO_FACTOR = 0.2;
 // TODO: vary by game state per tuning.md
@@ -27,6 +28,7 @@ export class GameScene extends Phaser.Scene {
   private scrollImages: Phaser.GameObjects.Image[] = [];
   // Entity render layer -- creation order determines draw depth (probe < player < bullets < hud)
   private playerEntity!: Player;
+  private bulletsEntity!: Bullets;
   private graphics!: Phaser.GameObjects.Graphics;
   private flashText!: Phaser.GameObjects.Text;
   private targetingTimerText!: Phaser.GameObjects.Text;
@@ -59,6 +61,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.playerEntity = new Player(this);
+    this.bulletsEntity = new Bullets(this);
     this.graphics = this.add.graphics();
     this.flashText = this.add
       .text(640, 360, '', { fontSize: '32px', color: '#00ffff' })
@@ -185,11 +188,7 @@ export class GameScene extends Phaser.Scene {
 
     this.playerEntity.update(this.playerState);
 
-    // Bullets
-    this.graphics.fillStyle(0xffff00);
-    for (const bullet of this.playerState.bullets) {
-      this.graphics.fillRect(bullet.x - 2, bullet.y - 5, 4, 10);
-    }
+    this.bulletsEntity.update(this.playerState.bullets);
 
     // Cooldown bar (top-left, 200px wide)
     if (probe.status === 'COOLDOWN' && probe.cooldownTotalMs > 0) {
