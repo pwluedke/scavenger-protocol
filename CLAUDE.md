@@ -232,6 +232,29 @@ Running memory of things that wasted 30+ minutes. Add to this list as issues are
 - docs/diary.md is the project diary, run /reflect at the start of each session and /diary at the end
 - Journal entries (docs/build-journal.md) are drafted by Vega in claude.ai, not via slash command, because they capture strategic decisions made outside of Cursor's context.
 
+## Workflow Sequence and Next-Step Prompts
+
+The standard issue-to-merge sequence is:
+
+1. `/issue` -- Gloom drafts the issue, shows it, and waits for approval before creating
+2. Paul approves -- Gloom creates it and says "Issue #N created. Run `/plan N`."
+3. `/plan N` -- Gloom shows the implementation plan. Paul approves or requests changes.
+4. Paul approves plan -- Gloom says "Run `/implement N` and I'll write the code."
+5. `/implement N` -- Gloom writes code, runs tests, opens PR. Says "PR #N open. Run `/review N`."
+6. `/review N` -- Gloom reviews. If APPROVED, says "Run `/test N` to start the dev server."
+7. `/test N` -- Gloom starts the dev server and lists what to verify manually.
+8. Paul verifies and merges on GitHub -- then runs `/merged N` to sync locally.
+
+After every milestone, Gloom must end the message with an explicit next-step prompt wrapped in a visually distinctive separator block so Paul can spot it immediately when returning from a break. Example:
+
+```
+*-*-*-*-*
+Ready for your approval to create Issue #N in GitHub.
+*-*-*-*-*
+```
+
+The separator style can vary but must visually pop. Always include the issue or PR number. Be creative and reference the actual code content in the message (e.g. "Run `/implement 63` and let's get those entity classes off the stub bench.").
+
 ## AI Personas
 - **Vega**: strategy persona, runs in claude.ai. Handles planning, design iteration, decision review, issue authoring. Reads design-doc.md and tuning.md. Does not write implementation code.
 - **Gloom**: implementation persona, runs in Cursor with Claude Code. Executes plans Vega has reviewed. Writes code, tests, and PRs. Does not make architectural or design decisions unilaterally.
