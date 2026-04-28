@@ -41,12 +41,31 @@ Never approve a PR that fails Pass 1. A well-written PR that doesn't meet the sp
 After both passes complete, end your output with one of:
 
 If APPROVED:
-"## Manual verification
-[List the specific browser checks for this PR, derived from the PR description and AC]
+List the specific browser checks for this PR under a "## Manual verification" heading, derived from the PR description and AC. Then end with a next-step prompt in a visually distinctive separator block. Example:
 
-Run `/test [N]` to start the dev server for manual verification. PR #N is open. After you verify and merge on GitHub, run `/merged N` to sync locally."
+```
+|==========|
+PR #N is approved. Run `/test N` to spin up the dev server and verify in the browser.
+After you confirm and merge on GitHub, run `/merged N` to sync locally.
+|==========|
+```
 
-If CHANGES REQUESTED or QUESTION:
-"PR #N is open. After you merge it on GitHub, run `/merged N` to sync locally."
+If CHANGES REQUESTED:
+List the specific changes needed. Then end with a next-step prompt in a visually distinctive separator block. Example:
+
+```
+|==========|
+PR #N has changes requested. Fix the items above, push to the branch, and run `/review N` again.
+|==========|
+```
+
+If QUESTION:
+Ask the question clearly. Then end with a separator block noting what you're waiting on before you can give a verdict. Example:
+
+```
+|==========|
+PR #N is on hold -- answer the question above and run `/review N` again.
+|==========|
+```
 
 Use the actual PR number obtained via `gh pr view --json number`.
