@@ -116,7 +116,7 @@ function stateFromGamepad(gp: Gamepad): InputState {
     reticleX,
     reticleY,
     fire: gp.buttons[7]?.pressed ?? false,       // R2/RT
-    probe: (gp.buttons[2]?.pressed ?? false) || (gp.buttons[10]?.pressed ?? false), // X/Square (2) or R3 (10)
+    probe: (gp.buttons[2]?.pressed ?? false) || (gp.buttons[11]?.pressed ?? false), // X/Square (2) or R3 (11)
     cancelProbe: gp.buttons[1]?.pressed ?? false, // B/Circle
     pause: gp.buttons[9]?.pressed ?? false,       // Options/Menu
     dash: false,

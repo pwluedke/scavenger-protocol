@@ -86,7 +86,7 @@ describe('input -- justPressed edge detection', () => {
     mgr.dispose();
   });
 
-  it('PROBE appears in justPressed on R3 press (button 10)', () => {
+  it('PROBE appears in justPressed on R3 press (button 11)', () => {
     // Switch source to gamepad via button 7, then release all buttons
     const gpWithFire = makeGamepad({
       buttons: Array.from({ length: 17 }, (_, i) =>
@@ -97,10 +97,10 @@ describe('input -- justPressed edge detection', () => {
     const mgr = createInputManager();
     mgr.update(); // source switches to gamepad
 
-    // Press R3 (button 10) with no other buttons held
+    // Press R3 (button 11) with no other buttons held
     const gpWithR3 = makeGamepad({
       buttons: Array.from({ length: 17 }, (_, i) =>
-        i === 10 ? { pressed: true, value: 1, touched: false } : { pressed: false, value: 0, touched: false }
+        i === 11 ? { pressed: true, value: 1, touched: false } : { pressed: false, value: 0, touched: false }
       ),
     });
     mockGamepads(gpWithR3);
