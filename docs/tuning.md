@@ -265,7 +265,7 @@ Visual: dark gray rectangle, 96x72px. Four vents: one each side plus two on bott
 | Descent speed | 80 px/s | Steady downward drift. |
 | Sine amplitude range | 20 to 320 px (capped) | Random per spawn. Capped to keep Driftling inside canvas. |
 | Amplitude edge margin | 50 px | Minimum gap between Driftling path and canvas edge. |
-| Sine frequency | 0.3 to 0.8 Hz | Random per spawn. |
+| Sine frequency | 0.5 to 1.0 Hz | Random per spawn. |
 | Sine phase | 0 to 2*PI rad | Random per spawn. |
 
 ### Spawn schedule

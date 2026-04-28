@@ -86,16 +86,7 @@ describe('spawner -- schedule timing', () => {
 describe('spawner -- amplitude constraint', () => {
   it('amplitude at x=100 never exceeds 50', () => {
     // Edge margin: maxLeft = 100 - 50 = 50, maxRight = 1230 - 100 = 1130, max = 50
-    const rng = createRng('amplitude-edge-left');
-    let state = createSpawner();
-    const spawned = [];
-    for (let t = 0; t <= 45000; t += 100) {
-      const result = updateSpawner(state, rng, t);
-      state = result.state;
-      spawned.push(...result.spawned.filter((d) => d.spawnX === 100));
-    }
-    // We can't guarantee spawnX=100 from random; instead verify the constraint directly
-    // by checking that amplitude <= min(spawnX - 50, 1230 - spawnX) for all spawned
+    // Can't guarantee spawnX=100 from random; verify the constraint for all spawned instead
     const { allSpawned } = advanceToTime(createSpawner(), 45000);
     for (const d of allSpawned) {
       const maxLeft = d.spawnX - 50;
