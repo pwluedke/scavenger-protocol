@@ -1,0 +1,45 @@
+name: Deploy to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm production deployment'
+        required: true
+        type: string
+
+# Prevents two simultaneous deploys from racing if Run workflow is clicked twice.
+# cancel-in-progress: false ensures a queued second deploy waits rather than canceling the first.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Netlify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM" != "DEPLOY" ]; then
+            echo "ERROR: confirm must be exactly 'DEPLOY'. Got: '$CONFIRM'"
+            exit 1
+          fi
+
+      - name: Trigger Netlify build hook
+        env:
+          HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$HOOK_URL")
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERROR: Netlify build hook returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Log deployment info
+        run: |
+          echo "Commit: ${{ github.sha }}"
+          echo "Actor:  ${{ github.actor }}"
+          echo "Time:   $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
