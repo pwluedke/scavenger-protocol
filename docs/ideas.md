@@ -720,3 +720,102 @@ Trigger condition: only migrate if Netlify free tier is exhausted again after th
 Migration cost: estimated 1-2 hours. DNS update on somanygames.app, build configuration port, smoke test.
 
 Status: parking lot. Deferred until Netlify usage forces the decision.
+
+---
+
+## Probe
+
+### Probe sees what the ship can't
+
+When the probe is launched and slow-mo activates, the probe tip reveals a thin cone of information the ship cannot see on its own. Different targets reveal different data:
+- Wrecks: salvage tier preview before commitment
+- Live enemies: weak point markers
+- Empty space: occasional silhouettes of incoming waves or buried alien artifacts
+
+Implementation hook: TARGETING state already exists. Add an overlay rendered only inside a small radius around the reticle.
+
+Why it matters: makes the probe a tool of perception, not just a tractor beam. Rewards probing things you would not normally probe. Makes slow-mo feel like a different game inside the game.
+
+Risk: scope. Adds dependencies on weak point system and salvage tier preview. Strong post-MVP candidate.
+
+Status: parking lot. Post-MVP.
+
+---
+
+## AI Integration
+
+### Crew log writes itself in real time via Anthropic API
+
+After significant run events (first kill, first probe success, first wreck salvaged, mini-boss reached, death), the crew log gets a one-line entry generated from a compact run state summary sent to Claude via Anthropic API.
+
+Tone: not "Captain's Log" boilerplate. First-person fragments from a crew member. "Tether held 2.4 seconds on a Husk. The plating felt warm in my hands when we bolted it on."
+
+Architecture notes:
+- Use Haiku for cost (fractions of a cent per run at this scale)
+- API calls fire off after combat lulls, never block gameplay
+- Logs are decoration, not gameplay state, so they live outside the deterministic core
+- System prompt locks the voice; content varies per run
+
+Why it matters: every player gets a different log. Demonstrates AI integration with restraint. Strong portfolio piece.
+
+Status: parking lot. High-leverage post-MVP candidate.
+
+---
+
+## Salvage
+
+### Wrecks remember what killed them
+
+When a wreck is salvaged, the node received is influenced by how the enemy died:
+- Killed by direct fire: more likely Offense node
+- Killed by collision: more likely Defense node
+- Killed by tether: more likely Probe node
+- Killed at the canvas edge by a stray bullet: higher rarity roll
+
+Why it matters: hidden layer of intentionality. Players notice patterns and develop personal theories of how the game works. Shareable fingerprint.
+
+Risk: probably too subtle for MVP. Players may not notice.
+
+Status: parking lot. Test post-MVP.
+
+---
+
+## Visual Design
+
+### Ship visually accumulates alien tech as nodes are picked
+
+Pitch promises "alien tech bolted on by automatons." Visual ship state should reflect every node picked. Plating means jagged armor plates. Twin Shot means a second barrel welded on. Slip Drive means alien thrusters protruding. By tier 4, ship is a baroque mess of mismatched tech.
+
+Compromise option: only render the visual addition for tier 4 picks, so ship has a "fully built" look at end of long runs but stays clean otherwise. Reduces art cost from 20 visuals to 5.
+
+Why it matters: theme integrity. If the ship does not visually accumulate, the pitch is a lie.
+
+Status: parking lot. Tier 4 only is the pragmatic version.
+
+---
+
+## Failure States
+
+### Partial death: alien tech tears off instead of game over
+
+When the player "dies," the ship does not blow up. The most recently bolted-on alien tech tears off. That node is lost. Tier of that branch drops by one. Player keeps flying with whatever HP and nodes remain. Three deaths in quick succession strips ship to base. The next death is real.
+
+Why it matters: changes failure state from "run over" to "your improvised salvage rig is failing piece by piece." Late game becomes tense in a different way: you can see your build degrading, you know you are three good hits from naked.
+
+Risk: huge structural change. Different game design. Likely future game or v2 of this one.
+
+Status: parking lot. Major version candidate, not MVP.
+
+---
+
+## Boss Design
+
+### Behemoth boss is built from your unsalvaged wrecks
+
+Final boss is not a separate enemy. It is an aggregate of every Husk you did not salvage in the run, fused together. The more Husks you let pass, the bigger and weirder the Behemoth is. Player who salvaged everything fights a small Behemoth with predictable phases. Player who let everything pass fights a 3000-HP monstrosity that grew across their run.
+
+Why it matters: makes player choices visible in the boss. Connects salvage gameplay to climax in a way no other shmup does. The boss is a record of how you played.
+
+Risk: requires boss to be data-driven from a "wrecks not collected" list. Doable but not trivial.
+
+Status: parking lot. Probably not v1.0. Worth filing because if you ever pull it off, it defines the game.
