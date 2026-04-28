@@ -11,11 +11,11 @@ const LATE_PHASE_MS = 25000;
 const SPAWN_X_MIN = 100;
 const SPAWN_X_MAX = 1180;
 const AMPLITUDE_MIN = 20;
-const AMPLITUDE_MAX = 320;
+const AMPLITUDE_MAX = 200;
 const AMPLITUDE_EDGE_MARGIN = 50;
 const AMPLITUDE_CANVAS_EDGE = 1230;
 const FREQUENCY_MIN = 0.5;
-const FREQUENCY_MAX = 1.0;
+const FREQUENCY_MAX = 0.6;
 const SPAWN_Y = -20;
 
 export interface SpawnerState {

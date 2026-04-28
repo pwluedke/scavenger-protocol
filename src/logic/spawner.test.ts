@@ -97,9 +97,9 @@ describe('spawner -- amplitude constraint', () => {
     }
   });
 
-  it('amplitude at x=640 (center) can reach up to 320', () => {
-    // maxLeft = 640 - 50 = 590, maxRight = 1230 - 640 = 590, min = 590 > 320, so max is 320
-    // Run many seeds to find a spawn near x=640 with amplitude close to 320
+  it('amplitude at x=640 (center) can reach up to 200', () => {
+    // maxLeft = 640 - 50 = 590, maxRight = 1230 - 640 = 590, min = 590 > 200, so max is 200
+    // Run many seeds to find a spawn near x=640 with amplitude close to 200
     let maxAmplitude = 0;
     for (let seed = 0; seed < 200; seed++) {
       const rng = createRng(seed);
@@ -115,7 +115,7 @@ describe('spawner -- amplitude constraint', () => {
       }
     }
     // Across 200 seeds, a center spawn should occasionally reach near max
-    expect(maxAmplitude).toBeGreaterThan(200);
+    expect(maxAmplitude).toBeGreaterThan(150);
   });
 
   it('all spawned driftlings satisfy the amplitude constraint', () => {
@@ -124,7 +124,7 @@ describe('spawner -- amplitude constraint', () => {
       const maxLeft = d.spawnX - 50;
       const maxRight = 1230 - d.spawnX;
       const maxAllowed = Math.min(maxLeft, maxRight);
-      expect(d.amplitude).toBeLessThanOrEqual(Math.min(320, maxAllowed) + 0.001);
+      expect(d.amplitude).toBeLessThanOrEqual(Math.min(200, maxAllowed) + 0.001);
     }
   });
 });
