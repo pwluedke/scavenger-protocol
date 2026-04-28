@@ -1,22 +1,9 @@
-# /start local
-Start the local development server for Session Zero.
+# /start
+Start the Vite dev server for Scavenger Protocol.
 
-Before starting, verify:
-- .env file exists in the project root
-- DATABASE_URL is set in .env
-- If either is missing, warn before proceeding
+Steps:
+1. Kill any existing process on port 5173: kill -9 $(lsof -t -i:5173) 2>/dev/null
+2. Run: npm run dev from the project root
+3. Report: dev server URL (http://localhost:5173 unless Vite picks a different port, in which case report the actual port)
 
-Then run:
-```bash
-kill -9 $(lsof -t -i:3000) 2>/dev/null
-node server.js
-```
-
-After starting, confirm:
-- Server is running at http://localhost:3000
-- Database connection message appears in logs
-- BGG_API_TOKEN status is shown in logs
-
-Note: If you are about to run Playwright tests, stop this server first.
-Playwright manages its own server with NODE_ENV=test via the webServer config.
-Running both simultaneously will cause test failures.
+Note: /test handles its own server lifecycle when verifying a PR. Use /start when you just want the dev server running for ad-hoc local development outside of a PR review flow.
