@@ -11,6 +11,7 @@ import {
   TARGETING_MAX_MS,
 } from '../logic/probe';
 import { ASSETS } from '../config/assets';
+import { Player } from '../entities/Player';
 
 const SLOWMO_FACTOR = 0.2;
 // TODO: vary by game state per tuning.md
@@ -24,6 +25,8 @@ export class GameScene extends Phaser.Scene {
   private reticleState!: ReticleState;
   private background!: Phaser.GameObjects.TileSprite;
   private scrollImages: Phaser.GameObjects.Image[] = [];
+  // Entity render layer -- creation order determines draw depth (probe < player < bullets < hud)
+  private playerEntity!: Player;
   private graphics!: Phaser.GameObjects.Graphics;
   private flashText!: Phaser.GameObjects.Text;
   private targetingTimerText!: Phaser.GameObjects.Text;
@@ -55,6 +58,7 @@ export class GameScene extends Phaser.Scene {
       this.scrollImages = [imgA, imgB];
     }
 
+    this.playerEntity = new Player(this);
     this.graphics = this.add.graphics();
     this.flashText = this.add
       .text(640, 360, '', { fontSize: '32px', color: '#00ffff' })
@@ -179,9 +183,7 @@ export class GameScene extends Phaser.Scene {
       this.graphics.strokeCircle(probe.x, probe.y, 16);
     }
 
-    // Player ship
-    this.graphics.fillStyle(0xffffff);
-    this.graphics.fillRect(this.playerState.x - 24, this.playerState.y - 18, 48, 36);
+    this.playerEntity.update(this.playerState);
 
     // Bullets
     this.graphics.fillStyle(0xffff00);
