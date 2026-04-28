@@ -704,3 +704,19 @@ Rationale: rewards player input speed. Matches classic arcade shmup feel (Galaga
 Implementation hook: input.ts already does justPressed edge detection on the fire action, so the tap path is cheap to add. The hold path stays untouched.
 
 Status: parking lot. Not MVP.
+
+---
+
+## Infrastructure / Deployment
+
+### Migrate Scavenger Protocol to Cloudflare Pages
+
+Current state: deployed to Netlify free tier (300 credits/month, deploys cost 15 credits each).
+
+Proposed: migrate to Cloudflare Pages. Free tier is significantly more generous for static asset workloads, and a Phaser bundle is exactly that. Cloudflare's CDN is competitive with Netlify on global performance.
+
+Trigger condition: only migrate if Netlify free tier is exhausted again after the deploy-on-demand system is in place. If manual production deploys keep usage well under 300 credits/month, stay on Netlify.
+
+Migration cost: estimated 1-2 hours. DNS update on somanygames.app, build configuration port, smoke test.
+
+Status: parking lot. Deferred until Netlify usage forces the decision.
