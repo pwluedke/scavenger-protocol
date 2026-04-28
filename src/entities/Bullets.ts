@@ -1,17 +1,19 @@
 // Phaser render entity only. Reads from logic layer state.
 import Phaser from 'phaser';
-import type { PlayerState } from '../logic/player';
+import type { Bullet } from '../logic/player';
 
-export class Player {
+export class Bullets {
   private graphics: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene) {
     this.graphics = scene.add.graphics();
   }
 
-  update(state: PlayerState): void {
+  update(bullets: Bullet[]): void {
     this.graphics.clear();
-    this.graphics.fillStyle(0xffffff);
-    this.graphics.fillRect(state.x - 24, state.y - 18, 48, 36);
+    this.graphics.fillStyle(0xffff00);
+    for (const bullet of bullets) {
+      this.graphics.fillRect(bullet.x - 2, bullet.y - 5, 4, 10);
+    }
   }
 }
