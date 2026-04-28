@@ -44,6 +44,7 @@ export class GameScene extends Phaser.Scene {
   private flashText!: Phaser.GameObjects.Text;
   private targetingTimerText!: Phaser.GameObjects.Text;
   private scanCooldownText!: Phaser.GameObjects.Text;
+  private hpText!: Phaser.GameObjects.Text;
   private scrollY = 0;
   private currentScrollSpeed = SCROLL_SPEED;
   private effectiveDeltaMs = 0;
@@ -91,6 +92,9 @@ export class GameScene extends Phaser.Scene {
       .text(20, 20, 'SCAN COOLDOWN', { fontSize: '12px', fontFamily: 'monospace', color: '#888888' })
       .setOrigin(0, 0)
       .setVisible(false);
+    this.hpText = this.add
+      .text(20, 680, 'HP: 3', { fontSize: '14px', fontFamily: 'monospace', color: '#ff4444' })
+      .setOrigin(0, 1);
   }
 
   update(time: number, delta: number): void {
@@ -217,6 +221,8 @@ export class GameScene extends Phaser.Scene {
       this.graphics.fillStyle(0x888888);
       this.graphics.fillRect(20, 20, Math.round(200 * fraction), 8);
     }
+
+    this.hpText.setText(`HP: ${this.playerState.hp}`);
 
     // Reward flash text
     if (probe.rewardFlashEndMs > ts) {

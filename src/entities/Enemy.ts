@@ -11,7 +11,7 @@ export class Enemy {
 
   update(driftlings: Driftling[]): void {
     this.graphics.clear();
-    for (const d of driftlings) {
+    for (const d of driftlings.filter((d) => d.alive)) {
       this.graphics.lineStyle(1, 0x606060);
       this.graphics.strokeCircle(d.x, d.y, 14);
       this.graphics.fillStyle(0xc0c0c0);
