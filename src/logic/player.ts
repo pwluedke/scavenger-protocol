@@ -6,6 +6,9 @@ const PLAYER_SPEED = 320;
 const ACCELERATION = 1600;
 const DECELERATION = 800;
 const FIRE_RATE_MS = 200;
+const INVULNERABILITY_MS = 1000;
+
+export const PLAYER_HIT_RADIUS = 16;
 
 const Y_MIN = 432;
 const Y_MAX = 684;
@@ -24,10 +27,16 @@ export interface PlayerState {
   hp: number;
   fireTimer: number;
   bullets: Bullet[];
+  invulnerabilityEndMs: number;
 }
 
 export function createPlayer(): PlayerState {
-  return { x: 640, y: 630, vx: 0, vy: 0, hp: 3, fireTimer: 0, bullets: [] };
+  return { x: 640, y: 630, vx: 0, vy: 0, hp: 3, fireTimer: 0, bullets: [], invulnerabilityEndMs: 0 };
+}
+
+export function damagePlayer(state: PlayerState, timestamp: number): PlayerState {
+  if (timestamp < state.invulnerabilityEndMs) return state;
+  return { ...state, hp: state.hp - 1, invulnerabilityEndMs: timestamp + INVULNERABILITY_MS };
 }
 
 export function updatePlayer(
@@ -88,5 +97,5 @@ export function updatePlayer(
     fireTimer = 0;
   }
 
-  return { x, y, vx, vy, hp: state.hp, fireTimer, bullets };
+  return { x, y, vx, vy, hp: state.hp, fireTimer, bullets, invulnerabilityEndMs: state.invulnerabilityEndMs };
 }

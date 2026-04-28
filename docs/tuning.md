@@ -254,6 +254,45 @@ Visual: dark gray rectangle, 96x72px. Four vents: one each side plus two on bott
 
 ---
 
+## Driftlings
+
+### Stats
+
+| Stat | Value | Notes |
+|---|---|---|
+| HP | 1 | One bullet kill. |
+| Hitbox radius | 14 px | Matches visual circle radius. |
+| Descent speed | 80 px/s | Steady downward drift. |
+| Sine amplitude range | 20 to 320 px (capped) | Random per spawn. Capped to keep Driftling inside canvas. |
+| Amplitude edge margin | 50 px | Minimum gap between Driftling path and canvas edge. |
+| Sine frequency | 0.5 to 1.0 Hz | Random per spawn. |
+| Sine phase | 0 to 2*PI rad | Random per spawn. |
+
+### Spawn schedule
+
+| Window | Rate | Notes |
+|---|---|---|
+| 0 to 5000 ms | None | Grace period at run start. |
+| 5000 to 25000 ms | 1 per 1500 ms | Early wave: one every 1.5 seconds. |
+| 25000 to 45000 ms | 1 per 800 ms | Escalation: one every 0.8 seconds. |
+| 45000+ ms | None | Placeholder. Full wave scheduler (Issue #73) will take over. |
+
+### Spawn position
+
+| Axis | Rule |
+|---|---|
+| X | Random across [50, 1230] |
+| Y | -20 px (just above canvas top) |
+
+### Collision
+
+| Hit type | Effect |
+|---|---|
+| Bullet hits Driftling | Bullet consumed, Driftling HP -1 (dead at 0) |
+| Player body hits Driftling | Player takes 1 HP damage (invulnerability 1000ms), Driftling dies |
+
+---
+
 ## Wave schedule
 
 ### Timeline
