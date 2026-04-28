@@ -13,6 +13,7 @@ import {
 import { ASSETS } from '../config/assets';
 import { Player } from '../entities/Player';
 import { Bullets } from '../entities/Bullets';
+import { Probe as ProbeEntity } from '../entities/Probe';
 
 const SLOWMO_FACTOR = 0.2;
 // TODO: vary by game state per tuning.md
@@ -27,6 +28,7 @@ export class GameScene extends Phaser.Scene {
   private background!: Phaser.GameObjects.TileSprite;
   private scrollImages: Phaser.GameObjects.Image[] = [];
   // Entity render layer -- creation order determines draw depth (probe < player < bullets < hud)
+  private probeEntity!: ProbeEntity;
   private playerEntity!: Player;
   private bulletsEntity!: Bullets;
   private graphics!: Phaser.GameObjects.Graphics;
@@ -60,6 +62,7 @@ export class GameScene extends Phaser.Scene {
       this.scrollImages = [imgA, imgB];
     }
 
+    this.probeEntity = new ProbeEntity(this);
     this.playerEntity = new Player(this);
     this.bulletsEntity = new Bullets(this);
     this.graphics = this.add.graphics();
@@ -144,12 +147,13 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.graphics.clear();
+    // Entity rendering -- each entity clears its own Graphics object
+    this.probeEntity.update(probe, reticle, ts, this.playerState.x, this.playerState.y);
+    this.playerEntity.update(this.playerState);
+    this.bulletsEntity.update(this.playerState.bullets);
 
-    // Reticle ring + countdown (TARGETING) / scan cooldown indicator (TARGETING_COOLDOWN)
+    // Countdown timer text (TARGETING) / scan cooldown text (TARGETING_COOLDOWN) -- HUD, stays here
     if (probe.status === 'TARGETING') {
-      this.graphics.lineStyle(2, 0x00ffff);
-      this.graphics.strokeCircle(reticle.x, reticle.y, 8);
       const remaining = Math.max(0, TARGETING_MAX_MS - (ts - probe.targetingStartMs));
       const color = remaining < 500 ? '#ff0000' : remaining < 1500 ? '#ffff00' : '#ffffff';
       this.targetingTimerText.setText(Math.floor(remaining).toString());
@@ -165,32 +169,8 @@ export class GameScene extends Phaser.Scene {
       this.scanCooldownText.setVisible(false);
     }
 
-    // Probe body (LAUNCHED, RETURNING, TETHERED)
-    if (
-      probe.status === 'LAUNCHED' ||
-      probe.status === 'RETURNING' ||
-      probe.status === 'TETHERED'
-    ) {
-      this.graphics.fillStyle(0x00ffff);
-      this.graphics.fillCircle(probe.x, probe.y, 8);
-    }
-
-    // Tether line + charge ring (TETHERED)
-    if (probe.status === 'TETHERED') {
-      this.graphics.lineStyle(2, 0x00ffff);
-      this.graphics.lineBetween(this.playerState.x, this.playerState.y, probe.x, probe.y);
-
-      const elapsed = ts - probe.tetheredSinceMs;
-      const lineWidth = elapsed >= 2000 ? 8 : elapsed >= 700 ? 4 : 2;
-      this.graphics.lineStyle(lineWidth, 0x00ffff);
-      this.graphics.strokeCircle(probe.x, probe.y, 16);
-    }
-
-    this.playerEntity.update(this.playerState);
-
-    this.bulletsEntity.update(this.playerState.bullets);
-
-    // Cooldown bar (top-left, 200px wide)
+    // HUD Graphics (cooldown bar only)
+    this.graphics.clear();
     if (probe.status === 'COOLDOWN' && probe.cooldownTotalMs > 0) {
       const fraction = Math.max(0, (probe.cooldownEndMs - ts) / probe.cooldownTotalMs);
       this.graphics.fillStyle(0x888888);
