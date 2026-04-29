@@ -88,7 +88,7 @@ export function playerWreckHits(
 ): number[] {
   const ids: number[] = [];
   for (const wreck of wrecks) {
-    if (!wreck.alive || wreck.phase !== 'settled') continue;
+    if (!wreck.alive || wreck.phase !== 'drifting') continue;
     if (circlesOverlap(player.x, player.y, player.radius, wreck.x, wreck.y, WRECK_HIT_RADIUS)) {
       ids.push(wreck.id);
     }

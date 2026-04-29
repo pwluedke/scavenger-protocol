@@ -2,7 +2,7 @@
 
 export const WRECK_HIT_RADIUS = 16;
 
-const SETTLED_DURATION_MS = 4000;
+const DRIFTING_DURATION_MS = 4000;
 const FALLING_DURATION_MS = 4000;
 const FALLING_ACCELERATION = 40; // px/s²
 const HUSK_SPAWN_VY = 25; // 50% of Husk descent speed (50px/s)
@@ -13,8 +13,8 @@ export interface Wreck {
   y: number;
   vx: number;
   vy: number;
-  phase: 'settled' | 'falling';
-  settledAt: number; // ms timestamp; slides forward while tethered to pause the timer
+  phase: 'drifting' | 'falling';
+  driftingAt: number; // ms timestamp; slides forward while tethered to pause the timer
   scale: number; // 1.0 to 0.0 during falling phase
   alive: boolean;
 }
@@ -26,8 +26,8 @@ export function spawnWreck(id: number, x: number, y: number, spawnTimeMs: number
     y,
     vx: 0,
     vy: HUSK_SPAWN_VY,
-    phase: 'settled',
-    settledAt: spawnTimeMs,
+    phase: 'drifting',
+    driftingAt: spawnTimeMs,
     scale: 1.0,
     alive: true,
   };
@@ -49,15 +49,15 @@ export function updateWrecks(
   return wrecks
     .filter((w) => w.alive)
     .map((w): Wreck => {
-      if (w.phase === 'settled') {
-        const settledAt = w.id === tetheredWreckId ? w.settledAt + deltaMs : w.settledAt;
-        if (currentTimeMs - settledAt >= SETTLED_DURATION_MS) {
-          return { ...w, settledAt, phase: 'falling' };
+      if (w.phase === 'drifting') {
+        const driftingAt = w.id === tetheredWreckId ? w.driftingAt + deltaMs : w.driftingAt;
+        if (currentTimeMs - driftingAt >= DRIFTING_DURATION_MS) {
+          return { ...w, driftingAt, phase: 'falling' };
         }
-        return { ...w, settledAt };
+        return { ...w, driftingAt };
       }
       // falling phase
-      const fallingStartMs = w.settledAt + SETTLED_DURATION_MS;
+      const fallingStartMs = w.driftingAt + DRIFTING_DURATION_MS;
       const fallingElapsedSec = (currentTimeMs - fallingStartMs) / 1000;
       const scale = Math.max(0, 1.0 - fallingElapsedSec / (FALLING_DURATION_MS / 1000));
       const vy = w.vy + FALLING_ACCELERATION * dt;
