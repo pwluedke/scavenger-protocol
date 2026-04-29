@@ -1,6 +1,6 @@
 // NO Phaser imports. NO DOM. NO Math.random(). NO Date.now(). Deterministic given inputs.
 
-export const DEBRIS_FLASH_LIFETIME_MS = 300;
+export const DEBRIS_FLASH_LIFETIME_MS = 600;
 export const GROUND_STAIN_CAP = 100;
 
 export interface DebrisFlash {
@@ -28,7 +28,7 @@ export function flashProgress(flash: DebrisFlash, currentTimeMs: number): number
 }
 
 export function flashRadius(progress: number): number {
-  return 4 + (30 - 4) * progress; // 4 to 30
+  return 8 + (50 - 8) * progress; // 8 to 50
 }
 
 export function flashAlpha(progress: number): number {

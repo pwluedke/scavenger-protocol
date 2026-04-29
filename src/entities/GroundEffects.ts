@@ -23,7 +23,7 @@ export class GroundEffects {
     this.flashGraphics.clear();
     for (const f of flashes) {
       const progress = flashProgress(f, currentTimeMs);
-      this.flashGraphics.lineStyle(1, 0x404040, flashAlpha(progress));
+      this.flashGraphics.lineStyle(1, 0x806040, flashAlpha(progress));
       this.flashGraphics.strokeCircle(f.x, f.y, flashRadius(progress));
     }
   }

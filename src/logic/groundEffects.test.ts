@@ -10,14 +10,14 @@ import {
 } from './groundEffects';
 
 describe('updateDebrisFlashes', () => {
-  it('removes flashes at or past their 300ms lifetime', () => {
+  it('removes flashes at or past their 600ms lifetime', () => {
     const flash: DebrisFlash = { x: 100, y: 200, createdAt: 0 };
-    expect(updateDebrisFlashes([flash], 300)).toHaveLength(0);
+    expect(updateDebrisFlashes([flash], 600)).toHaveLength(0);
   });
 
-  it('keeps flashes before their 300ms lifetime', () => {
+  it('keeps flashes before their 600ms lifetime', () => {
     const flash: DebrisFlash = { x: 100, y: 200, createdAt: 0 };
-    expect(updateDebrisFlashes([flash], 299)).toHaveLength(1);
+    expect(updateDebrisFlashes([flash], 599)).toHaveLength(1);
   });
 
   it('returns empty array when all flashes are expired', () => {
@@ -25,7 +25,7 @@ describe('updateDebrisFlashes', () => {
       { x: 100, y: 200, createdAt: 0 },
       { x: 300, y: 400, createdAt: 0 },
     ];
-    expect(updateDebrisFlashes(flashes, 300)).toHaveLength(0);
+    expect(updateDebrisFlashes(flashes, 600)).toHaveLength(0);
   });
 });
 
@@ -61,24 +61,24 @@ describe('flashProgress', () => {
     expect(flashProgress(flash, 0)).toBeCloseTo(0.0);
   });
 
-  it('returns 0.5 at 150ms', () => {
+  it('returns 0.5 at 300ms', () => {
     const flash: DebrisFlash = { x: 0, y: 0, createdAt: 0 };
-    expect(flashProgress(flash, 150)).toBeCloseTo(0.5);
+    expect(flashProgress(flash, 300)).toBeCloseTo(0.5);
   });
 
-  it('returns 1.0 at 300ms', () => {
+  it('returns 1.0 at 600ms', () => {
     const flash: DebrisFlash = { x: 0, y: 0, createdAt: 0 };
-    expect(flashProgress(flash, 300)).toBeCloseTo(1.0);
+    expect(flashProgress(flash, 600)).toBeCloseTo(1.0);
   });
 });
 
 describe('flashRadius', () => {
-  it('returns 4 at progress 0', () => {
-    expect(flashRadius(0)).toBe(4);
+  it('returns 8 at progress 0', () => {
+    expect(flashRadius(0)).toBe(8);
   });
 
-  it('returns 30 at progress 1.0', () => {
-    expect(flashRadius(1.0)).toBe(30);
+  it('returns 50 at progress 1.0', () => {
+    expect(flashRadius(1.0)).toBe(50);
   });
 });
 

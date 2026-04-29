@@ -294,6 +294,46 @@ Visual: dark gray rectangle, 96x72px. Four vents: one each side plus two on bott
 
 ---
 
+## Wrecks and ground effects
+
+### Wreck lifecycle
+
+| Phase | Duration | Scale | Layer |
+|---|---|---|---|
+| Drifting | 4000 ms | 1.0 | LAYER_COMBAT (400) |
+| MidFall | 2000 ms | 1.0 to 0.7 (lerp) | LAYER_MID_FALL (300) |
+| LateFall | 2000 ms | 0.7 to 0.4 (lerp) | LAYER_LATE_FALL (200) |
+| Grounded | -- | -- | Replaced by debris flash + ground stain |
+
+Scale lerps smoothly within each fall phase; no snap at phase boundaries. Velocity constant at 40 px/s (80% of Husk descent speed) through all phases.
+
+### Debris flash
+
+Created when a wreck transitions from lateFall to grounded.
+
+| Property | Value |
+|---|---|
+| Lifetime | 600 ms |
+| Initial radius | 8 px |
+| Final radius | 50 px |
+| Alpha | 1.0 to 0.0 over lifetime |
+| Color | 0x806040 (warm orange-brown, reads as impact dust) |
+| Layer | LAYER_GROUND + 1 (101) |
+
+### Ground stain
+
+Created alongside the debris flash; persists for the entire run.
+
+| Property | Value |
+|---|---|
+| Shape | Filled circle, radius 8 px |
+| Color | 0x202020 |
+| Alpha | 0.6 |
+| Layer | LAYER_GROUND (100) |
+| Cap | 100 stains maximum; oldest drops off when cap is reached |
+
+---
+
 ## Wave schedule
 
 ### Timeline
