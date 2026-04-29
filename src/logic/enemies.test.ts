@@ -1,4 +1,4 @@
-import { updateDriftlings, Driftling } from './enemies';
+import { updateDriftlings, Driftling, updateHusks, Husk } from './enemies';
 
 function makeDriftling(overrides: Partial<Driftling> = {}): Driftling {
   return {
@@ -15,6 +15,37 @@ function makeDriftling(overrides: Partial<Driftling> = {}): Driftling {
     ...overrides,
   };
 }
+
+function makeHusk(overrides: Partial<Husk> = {}): Husk {
+  return { id: 1, x: 640, y: 100, hp: 4, alive: true, spawnedAtMs: 0, ...overrides };
+}
+
+describe('updateHusks -- vertical descent', () => {
+  it('descends at 50 px/s', () => {
+    const h = makeHusk({ y: 200 });
+    const result = updateHusks([h], 100);
+    expect(result[0].y).toBeCloseTo(205, 5); // 50 * 0.1 = 5px
+  });
+});
+
+describe('updateHusks -- lifecycle filtering', () => {
+  it('removes husks with alive=false', () => {
+    expect(updateHusks([makeHusk({ alive: false })], 16)).toHaveLength(0);
+  });
+
+  it('keeps alive husks', () => {
+    expect(updateHusks([makeHusk({ alive: true })], 16)).toHaveLength(1);
+  });
+
+  it('removes husks that descend past y=740', () => {
+    // y=735, 50px/s over 200ms = 10px -> ends at 745, removed
+    expect(updateHusks([makeHusk({ y: 735 })], 200)).toHaveLength(0);
+  });
+
+  it('keeps husks still on screen', () => {
+    expect(updateHusks([makeHusk({ y: 200 })], 100)).toHaveLength(1);
+  });
+});
 
 describe('updateDriftlings -- determinism', () => {
   it('same inputs produce identical output', () => {

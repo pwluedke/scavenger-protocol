@@ -34,9 +34,9 @@ export function createPlayer(): PlayerState {
   return { x: 640, y: 630, vx: 0, vy: 0, hp: 3, fireTimer: 0, bullets: [], invulnerabilityEndMs: 0 };
 }
 
-export function damagePlayer(state: PlayerState, timestamp: number): PlayerState {
+export function damagePlayer(state: PlayerState, timestamp: number, damage = 1): PlayerState {
   if (timestamp < state.invulnerabilityEndMs) return state;
-  return { ...state, hp: state.hp - 1, invulnerabilityEndMs: timestamp + INVULNERABILITY_MS };
+  return { ...state, hp: state.hp - damage, invulnerabilityEndMs: timestamp + INVULNERABILITY_MS };
 }
 
 export function updatePlayer(

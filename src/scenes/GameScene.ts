@@ -10,15 +10,19 @@ import {
   ReticleState,
   TARGETING_MAX_MS,
 } from '../logic/probe';
-import { updateDriftlings, Driftling } from '../logic/enemies';
+import { updateDriftlings, Driftling, Husk, updateHusks } from '../logic/enemies';
 import { createSpawner, updateSpawner, SpawnerState } from '../logic/spawner';
-import { bulletEnemyHits, playerEnemyHits } from '../logic/collision';
+import { bulletEnemyHits, playerEnemyHits, bulletHuskHits, playerHuskHits } from '../logic/collision';
+import { updateWrecks, spawnWreck } from '../logic/wreck';
+import type { Wreck } from '../logic/wreck';
+import { createRunState, RunState } from '../logic/run';
 import { createRng, Rng } from '../logic/rng';
 import { ASSETS } from '../config/assets';
 import { Player } from '../entities/Player';
 import { Bullets } from '../entities/Bullets';
 import { Probe as ProbeEntity } from '../entities/Probe';
 import { Enemy } from '../entities/Enemy';
+import { Wreck as WreckEntity } from '../entities/Wreck';
 
 const SLOWMO_FACTOR = 0.2;
 // TODO: vary by game state per tuning.md
@@ -32,19 +36,24 @@ export class GameScene extends Phaser.Scene {
   private reticleState!: ReticleState;
   private background!: Phaser.GameObjects.TileSprite;
   private scrollImages: Phaser.GameObjects.Image[] = [];
-  // Entity render layer -- creation order determines draw depth (probe < player < bullets < hud)
+  // Entity render layer -- creation order determines draw depth (back to front)
+  private wreckEntity!: WreckEntity;
+  private enemyEntity!: Enemy;
+  private bulletsEntity!: Bullets;
   private probeEntity!: ProbeEntity;
   private playerEntity!: Player;
-  private bulletsEntity!: Bullets;
   private driftlings: Driftling[] = [];
+  private husks: Husk[] = [];
+  private wrecks: Wreck[] = [];
   private spawnerState!: SpawnerState;
   private spawnerRng!: Rng;
-  private enemyEntity!: Enemy;
+  private runState!: RunState;
   private graphics!: Phaser.GameObjects.Graphics;
   private flashText!: Phaser.GameObjects.Text;
   private targetingTimerText!: Phaser.GameObjects.Text;
   private scanCooldownText!: Phaser.GameObjects.Text;
   private hpText!: Phaser.GameObjects.Text;
+  private salvageText!: Phaser.GameObjects.Text;
   private scrollY = 0;
   private currentScrollSpeed = SCROLL_SPEED;
   private effectiveDeltaMs = 0;
@@ -61,6 +70,7 @@ export class GameScene extends Phaser.Scene {
     this.playerState = createPlayer();
     this.probeState = createProbe();
     this.reticleState = createReticle();
+    this.runState = createRunState();
 
     if (ASSETS.backgroundMode === 'tile') {
       this.background = this.add.tileSprite(640, 360, 1280, 720, ASSETS.background);
@@ -75,10 +85,12 @@ export class GameScene extends Phaser.Scene {
     this.spawnerState = createSpawner();
     this.spawnerRng = createRng('run-seed-spawner');
 
-    this.probeEntity = new ProbeEntity(this);
+    // Draw order (back to front): wrecks, enemies, bullets, probe, player, HUD
+    this.wreckEntity = new WreckEntity(this);
     this.enemyEntity = new Enemy(this);
-    this.playerEntity = new Player(this);
     this.bulletsEntity = new Bullets(this);
+    this.probeEntity = new ProbeEntity(this);
+    this.playerEntity = new Player(this);
     this.graphics = this.add.graphics();
     this.flashText = this.add
       .text(640, 360, '', { fontSize: '32px', color: '#00ffff' })
@@ -94,6 +106,9 @@ export class GameScene extends Phaser.Scene {
       .setVisible(false);
     this.hpText = this.add
       .text(20, 680, 'HP: 3', { fontSize: '14px', fontFamily: 'monospace', color: '#ff4444' })
+      .setOrigin(0, 1);
+    this.salvageText = this.add
+      .text(20, 700, 'SALVAGE: 0', { fontSize: '14px', fontFamily: 'monospace', color: '#00ffaa' })
       .setOrigin(0, 1);
   }
 
@@ -122,6 +137,10 @@ export class GameScene extends Phaser.Scene {
     // Reticle always updates using raw delta (dedicated IJKL / right stick, not slow-mo affected)
     this.reticleState = updateReticle(this.reticleState, inputFrame.current, this.rawDeltaMs);
 
+    // Update wrecks before probe so probe arrival sees the current wreck phase
+    const tetheredWreckId = this.probeState.status === 'TETHERED' ? this.probeState.targetWreckId : null;
+    this.wrecks = updateWrecks(this.wrecks, effectiveDeltaMs, timestamp, tetheredWreckId);
+
     const probeJustPressed = inputFrame.justPressed.has(LogicalAction.PROBE);
     this.probeState = updateProbe(
       this.probeState,
@@ -133,6 +152,7 @@ export class GameScene extends Phaser.Scene {
       this.reticleState.x,
       this.reticleState.y,
       probeJustPressed,
+      this.wrecks,
     );
 
     // Snap reticle 60px above player when entering TARGETING
@@ -142,31 +162,70 @@ export class GameScene extends Phaser.Scene {
 
     this.setSlowMo(this.probeState.status === 'TARGETING');
 
-    const { state: newSpawner, spawned } = updateSpawner(this.spawnerState, this.spawnerRng, timestamp);
+    // Salvage credit: probe completed a wreck tether return
+    if (prevProbeStatus === 'RETURNING' && this.probeState.status === 'COOLDOWN' && !this.probeState.emptyReturn) {
+      this.runState = { ...this.runState, salvageCount: this.runState.salvageCount + this.probeState.rewardTier };
+    }
+
+    const { state: newSpawner, spawned, spawnedHusks } = updateSpawner(this.spawnerState, this.spawnerRng, timestamp);
     this.spawnerState = newSpawner;
     this.driftlings = [...this.driftlings, ...spawned];
+    this.husks = [...this.husks, ...spawnedHusks];
+
     this.driftlings = updateDriftlings(this.driftlings, effectiveDeltaMs, timestamp);
+    this.husks = updateHusks(this.husks, effectiveDeltaMs);
 
+    // Bullet hits
     const bHits = bulletEnemyHits(this.playerState.bullets, this.driftlings);
-    const pHits = playerEnemyHits(
-      { x: this.playerState.x, y: this.playerState.y, radius: PLAYER_HIT_RADIUS },
-      this.driftlings,
-    );
+    const bHuskHits = bulletHuskHits(this.playerState.bullets, this.husks);
 
-    const hitBulletIndices = new Set(bHits.map((h) => h.bulletIndex));
-    const hitByBullet = new Set(bHits.map((h) => h.enemyId));
+    const hitBulletIndices = new Set([
+      ...bHits.map((h) => h.bulletIndex),
+      ...bHuskHits.map((h) => h.bulletIndex),
+    ]);
     this.playerState = {
       ...this.playerState,
       bullets: this.playerState.bullets.filter((_, i) => !hitBulletIndices.has(i)),
     };
+
+    // Apply driftling damage
+    const hitByBullet = new Set(bHits.map((h) => h.enemyId));
     this.driftlings = this.driftlings.map((d) =>
       hitByBullet.has(d.id) ? { ...d, hp: d.hp - 1, alive: d.hp - 1 > 0 } : d,
     );
 
+    // Apply husk damage -- dead husks spawn wrecks
+    const hitHusksByBullet = new Set(bHuskHits.map((h) => h.huskId));
+    const newWrecks: Wreck[] = [];
+    this.husks = this.husks.map((h) => {
+      if (!hitHusksByBullet.has(h.id)) return h;
+      const newHp = h.hp - 1;
+      if (newHp <= 0) {
+        newWrecks.push(spawnWreck(h.id, h.x, h.y, timestamp));
+        return { ...h, hp: 0, alive: false };
+      }
+      return { ...h, hp: newHp };
+    });
+    this.wrecks = [...this.wrecks, ...newWrecks];
+
+    // Player-driftling collision
+    const pHits = playerEnemyHits(
+      { x: this.playerState.x, y: this.playerState.y, radius: PLAYER_HIT_RADIUS },
+      this.driftlings,
+    );
     if (pHits.length > 0) {
       this.playerState = damagePlayer(this.playerState, timestamp);
       const hitByPlayer = new Set(pHits);
       this.driftlings = this.driftlings.map((d) => (hitByPlayer.has(d.id) ? { ...d, alive: false } : d));
+    }
+
+    // Player-husk collision: 2 HP damage, husks survive contact
+    const pHuskHits = playerHuskHits(
+      { x: this.playerState.x, y: this.playerState.y, radius: PLAYER_HIT_RADIUS },
+      this.husks,
+    );
+    if (pHuskHits.length > 0) {
+      this.playerState = damagePlayer(this.playerState, timestamp, 2);
     }
   }
 
@@ -191,11 +250,12 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Entity rendering -- each entity clears its own Graphics object
-    this.probeEntity.update(probe, reticle, ts, this.playerState.x, this.playerState.y);
-    this.enemyEntity.update(this.driftlings);
-    this.playerEntity.update(this.playerState);
+    // Entity rendering -- draw order matches creation order (back to front)
+    this.wreckEntity.update(this.wrecks, probe.candidateWreckId);
+    this.enemyEntity.update(this.driftlings, this.husks);
     this.bulletsEntity.update(this.playerState.bullets);
+    this.probeEntity.update(probe, reticle, ts, this.playerState.x, this.playerState.y);
+    this.playerEntity.update(this.playerState);
 
     // Countdown timer text (TARGETING) / scan cooldown text (TARGETING_COOLDOWN) -- HUD, stays here
     if (probe.status === 'TARGETING') {
@@ -223,6 +283,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.hpText.setText(`HP: ${this.playerState.hp}`);
+    this.salvageText.setText(`SALVAGE: ${this.runState.salvageCount}`);
 
     // Reward flash text
     if (probe.rewardFlashEndMs > ts) {

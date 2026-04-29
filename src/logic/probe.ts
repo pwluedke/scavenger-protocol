@@ -1,5 +1,7 @@
 // NO Phaser imports. NO DOM. NO Math.random(). NO Date.now(). Deterministic given inputs.
 import type { InputState } from '../systems/input';
+import type { Wreck } from './wreck';
+import { salvageTier } from './wreck';
 
 const PROBE_TRAVEL_SPEED = 600;
 export const PROBE_HP = 3;
@@ -11,6 +13,7 @@ export const TARGETING_COOLDOWN_CANCEL_MS = 1500;
 export const TARGETING_COOLDOWN_TIMEOUT_MS = 3000;
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
+const RETICLE_LOCK_RADIUS = 30; // px: reticle must be within this distance to lock onto a settled wreck
 
 export type ProbeStatus =
   | 'IDLE'
@@ -37,6 +40,8 @@ export interface ProbeState {
   emptyReturn: boolean;
   targetingStartMs: number;
   targetingCooldownEndMs: number;
+  candidateWreckId: number | null;
+  targetWreckId: number | null;
 }
 
 export interface ReticleState {
@@ -60,6 +65,8 @@ export function createProbe(): ProbeState {
     emptyReturn: false,
     targetingStartMs: 0,
     targetingCooldownEndMs: 0,
+    candidateWreckId: null,
+    targetWreckId: null,
   };
 }
 
@@ -103,6 +110,7 @@ export function updateProbe(
   reticleX: number,
   reticleY: number,
   probeJustPressed: boolean,
+  wrecks: Wreck[],
 ): ProbeState {
   const dt = deltaMs / 1000;
 
@@ -115,24 +123,53 @@ export function updateProbe(
     }
 
     case 'TARGETING': {
+      // Scan for nearest settled wreck within reticle lock radius
+      let candidateWreckId: number | null = null;
+      let minDist2 = RETICLE_LOCK_RADIUS * RETICLE_LOCK_RADIUS;
+      for (const w of wrecks) {
+        if (!w.alive || w.phase !== 'settled') continue;
+        const dx = reticleX - w.x;
+        const dy = reticleY - w.y;
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 < minDist2) {
+          minDist2 = dist2;
+          candidateWreckId = w.id;
+        }
+      }
+
       if (timestamp - probe.targetingStartMs >= TARGETING_MAX_MS) {
-        return { ...probe, status: 'TARGETING_COOLDOWN', targetingCooldownEndMs: timestamp + TARGETING_COOLDOWN_TIMEOUT_MS };
+        return {
+          ...probe,
+          candidateWreckId: null,
+          status: 'TARGETING_COOLDOWN',
+          targetingCooldownEndMs: timestamp + TARGETING_COOLDOWN_TIMEOUT_MS,
+        };
       }
       if (input.cancelProbe) {
-        return { ...probe, status: 'TARGETING_COOLDOWN', targetingCooldownEndMs: timestamp + TARGETING_COOLDOWN_CANCEL_MS };
+        return {
+          ...probe,
+          candidateWreckId: null,
+          status: 'TARGETING_COOLDOWN',
+          targetingCooldownEndMs: timestamp + TARGETING_COOLDOWN_CANCEL_MS,
+        };
       }
       if (probeJustPressed) {
+        const targetWreck = candidateWreckId !== null ? (wrecks.find((w) => w.id === candidateWreckId) ?? null) : null;
+        const targetX = targetWreck ? targetWreck.x : reticleX;
+        const targetY = targetWreck ? targetWreck.y : reticleY;
         return {
           ...probe,
           status: 'LAUNCHED',
           x: playerX,
           y: playerY,
-          targetX: reticleX,
-          targetY: reticleY,
-          emptyReturn: true,
+          targetX,
+          targetY,
+          targetWreckId: candidateWreckId,
+          candidateWreckId: null,
+          emptyReturn: candidateWreckId === null,
         };
       }
-      return probe;
+      return { ...probe, candidateWreckId };
     }
 
     case 'TARGETING_COOLDOWN': {
@@ -148,21 +185,28 @@ export function updateProbe(
       const distToTarget = Math.sqrt(dx * dx + dy * dy);
       const moveDistance = PROBE_TRAVEL_SPEED * dt;
       if (distToTarget === 0 || moveDistance >= distToTarget) {
-        return {
-          ...probe,
-          x: probe.targetX,
-          y: probe.targetY,
-          status: 'RETURNING',
-          emptyReturn: true,
-        };
+        if (probe.targetWreckId !== null) {
+          const targetWreck = wrecks.find((w) => w.id === probe.targetWreckId) ?? null;
+          if (!targetWreck || targetWreck.phase !== 'settled') {
+            return { ...probe, x: probe.targetX, y: probe.targetY, status: 'DESTROYED', targetWreckId: null };
+          }
+          return { ...probe, x: probe.targetX, y: probe.targetY, status: 'TETHERED', tetheredSinceMs: timestamp };
+        }
+        return { ...probe, x: probe.targetX, y: probe.targetY, status: 'RETURNING', emptyReturn: true };
       }
       const ratio = moveDistance / distToTarget;
       return { ...probe, x: probe.x + dx * ratio, y: probe.y + dy * ratio };
     }
 
     case 'TETHERED': {
+      const tetheredWreck = wrecks.find((w) => w.id === probe.targetWreckId) ?? null;
+      if (!tetheredWreck || tetheredWreck.phase !== 'settled') {
+        return { ...probe, status: 'DESTROYED', targetWreckId: null };
+      }
       if (probeJustPressed) {
-        return { ...probe, status: 'RETURNING', rewardTier: 1, emptyReturn: false };
+        const holdMs = timestamp - probe.tetheredSinceMs;
+        const tier = salvageTier(holdMs);
+        return { ...probe, status: 'RETURNING', rewardTier: tier, emptyReturn: false, targetWreckId: null };
       }
       return probe;
     }

@@ -1,0 +1,68 @@
+// NO Phaser imports. NO DOM. NO Math.random(). NO Date.now(). Deterministic given inputs.
+
+export const WRECK_HIT_RADIUS = 16;
+
+const SETTLED_DURATION_MS = 4000;
+const FALLING_DURATION_MS = 4000;
+const FALLING_ACCELERATION = 40; // px/s²
+const HUSK_SPAWN_VY = 25; // 50% of Husk descent speed (50px/s)
+
+export interface Wreck {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  phase: 'settled' | 'falling';
+  settledAt: number; // ms timestamp; slides forward while tethered to pause the timer
+  scale: number; // 1.0 to 0.0 during falling phase
+  alive: boolean;
+}
+
+export function spawnWreck(id: number, x: number, y: number, spawnTimeMs: number): Wreck {
+  return {
+    id,
+    x,
+    y,
+    vx: 0,
+    vy: HUSK_SPAWN_VY,
+    phase: 'settled',
+    settledAt: spawnTimeMs,
+    scale: 1.0,
+    alive: true,
+  };
+}
+
+export function salvageTier(holdMs: number): number {
+  if (holdMs < 1000) return 1;
+  if (holdMs < 2500) return 2;
+  return 3;
+}
+
+export function updateWrecks(
+  wrecks: Wreck[],
+  deltaMs: number,
+  currentTimeMs: number,
+  tetheredWreckId: number | null,
+): Wreck[] {
+  const dt = deltaMs / 1000;
+  return wrecks
+    .filter((w) => w.alive)
+    .map((w): Wreck => {
+      if (w.phase === 'settled') {
+        const settledAt = w.id === tetheredWreckId ? w.settledAt + deltaMs : w.settledAt;
+        if (currentTimeMs - settledAt >= SETTLED_DURATION_MS) {
+          return { ...w, settledAt, phase: 'falling' };
+        }
+        return { ...w, settledAt };
+      }
+      // falling phase
+      const fallingStartMs = w.settledAt + SETTLED_DURATION_MS;
+      const fallingElapsedSec = (currentTimeMs - fallingStartMs) / 1000;
+      const scale = Math.max(0, 1.0 - fallingElapsedSec / (FALLING_DURATION_MS / 1000));
+      const vy = w.vy + FALLING_ACCELERATION * dt;
+      const y = w.y + w.vy * dt;
+      return { ...w, vy, y, scale, alive: scale > 0 };
+    })
+    .filter((w) => w.alive);
+}
