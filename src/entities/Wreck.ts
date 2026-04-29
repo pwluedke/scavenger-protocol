@@ -9,7 +9,7 @@ export class Wreck {
     this.graphics = scene.add.graphics();
   }
 
-  update(wrecks: WreckLogic[], candidateWreckId: number | null = null): void {
+  update(wrecks: WreckLogic[], _candidateWreckId: number | null = null): void {
     this.graphics.clear();
     for (const w of wrecks.filter((w) => w.alive)) {
       const half = 16 * w.scale;
