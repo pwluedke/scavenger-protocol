@@ -51,10 +51,12 @@ export function updateWrecks(
     .map((w): Wreck => {
       if (w.phase === 'drifting') {
         const driftingAt = w.id === tetheredWreckId ? w.driftingAt + deltaMs : w.driftingAt;
+        const x = w.x + w.vx * dt;
+        const y = w.y + w.vy * dt;
         if (currentTimeMs - driftingAt >= DRIFTING_DURATION_MS) {
-          return { ...w, driftingAt, phase: 'falling' };
+          return { ...w, x, y, driftingAt, phase: 'falling' };
         }
-        return { ...w, driftingAt };
+        return { ...w, x, y, driftingAt };
       }
       // falling phase
       const fallingStartMs = w.driftingAt + DRIFTING_DURATION_MS;
