@@ -65,7 +65,7 @@ export class GameScene extends Phaser.Scene {
   private currentScrollSpeed = SCROLL_SPEED;
   private effectiveDeltaMs = 0;
   private rawDeltaMs = 0;
-  private currentTimestamp = 0;
+  private gameTimeMs = 0; // game-time accumulator; increments by effectiveDeltaMs so slow-mo scales all time-based logic
 
   constructor() {
     super({ key: 'GameScene' });
@@ -74,6 +74,14 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.inputManager = createInputManager();
     this.events.once('shutdown', () => this.inputManager.dispose());
+    this.gameTimeMs = 0;
+    this.inSlowMo = false;
+    this.scrollY = 0;
+    this.driftlings = [];
+    this.husks = [];
+    this.wrecks = [];
+    this.groundStains = [];
+    this.debrisFlashes = [];
     this.playerState = createPlayer();
     this.probeState = createProbe();
     this.reticleState = createReticle();
@@ -120,12 +128,12 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0, 1);
   }
 
-  update(time: number, delta: number): void {
+  update(_time: number, delta: number): void {
     const inputFrame = this.inputManager.update();
     this.rawDeltaMs = delta;
-    this.currentTimestamp = time;
     this.effectiveDeltaMs = delta * (this.inSlowMo ? SLOWMO_FACTOR : 1);
-    this.updateLogic(inputFrame, this.effectiveDeltaMs, time);
+    this.gameTimeMs += this.effectiveDeltaMs;
+    this.updateLogic(inputFrame, this.effectiveDeltaMs, this.gameTimeMs);
     this.drawScene();
   }
 
@@ -137,7 +145,7 @@ export class GameScene extends Phaser.Scene {
     this.currentScrollSpeed = speed;
   }
 
-  private updateLogic(inputFrame: InputFrame, effectiveDeltaMs: number, timestamp: number): void {
+  private updateLogic(inputFrame: InputFrame, effectiveDeltaMs: number, gameTimeMs: number): void {
     this.playerState = updatePlayer(this.playerState, inputFrame.current, effectiveDeltaMs);
 
     const prevProbeStatus = this.probeState.status;
@@ -147,13 +155,13 @@ export class GameScene extends Phaser.Scene {
 
     // Update wrecks before probe so probe arrival sees the current wreck phase
     const tetheredWreckId = this.probeState.status === 'TETHERED' ? this.probeState.targetWreckId : null;
-    const { wrecks: updatedWrecks, newlyGrounded } = updateWrecks(this.wrecks, effectiveDeltaMs, timestamp, tetheredWreckId);
+    const { wrecks: updatedWrecks, newlyGrounded } = updateWrecks(this.wrecks, effectiveDeltaMs, gameTimeMs, tetheredWreckId);
     this.wrecks = updatedWrecks;
 
     // Ground effects: expire old flashes, then emit new ones for wrecks that just grounded
-    this.debrisFlashes = updateDebrisFlashes(this.debrisFlashes, timestamp);
+    this.debrisFlashes = updateDebrisFlashes(this.debrisFlashes, gameTimeMs);
     for (const pos of newlyGrounded) {
-      this.debrisFlashes = [...this.debrisFlashes, { x: pos.x, y: pos.y, createdAt: timestamp }];
+      this.debrisFlashes = [...this.debrisFlashes, { x: pos.x, y: pos.y, createdAt: gameTimeMs }];
       this.groundStains = addGroundStain(this.groundStains, pos.x, pos.y);
     }
 
@@ -173,7 +181,7 @@ export class GameScene extends Phaser.Scene {
       this.playerState.x,
       this.playerState.y,
       effectiveDeltaMs,
-      timestamp,
+      gameTimeMs,
       this.reticleState.x,
       this.reticleState.y,
       probeJustPressed,
@@ -192,12 +200,12 @@ export class GameScene extends Phaser.Scene {
       this.runState = { ...this.runState, salvageCount: this.runState.salvageCount + this.probeState.rewardTier };
     }
 
-    const { state: newSpawner, spawned, spawnedHusks } = updateSpawner(this.spawnerState, this.spawnerRng, timestamp);
+    const { state: newSpawner, spawned, spawnedHusks } = updateSpawner(this.spawnerState, this.spawnerRng, gameTimeMs);
     this.spawnerState = newSpawner;
     this.driftlings = [...this.driftlings, ...spawned];
     this.husks = [...this.husks, ...spawnedHusks];
 
-    this.driftlings = updateDriftlings(this.driftlings, effectiveDeltaMs, timestamp);
+    this.driftlings = updateDriftlings(this.driftlings, effectiveDeltaMs, gameTimeMs);
     this.husks = updateHusks(this.husks, effectiveDeltaMs);
 
     // Bullet hits
@@ -226,7 +234,7 @@ export class GameScene extends Phaser.Scene {
       if (!hitHusksByBullet.has(h.id)) return h;
       const newHp = h.hp - 1;
       if (newHp <= 0) {
-        newWrecks.push(spawnWreck(h.id, h.x, h.y, timestamp));
+        newWrecks.push(spawnWreck(h.id, h.x, h.y, gameTimeMs));
         return { ...h, hp: 0, alive: false };
       }
       return { ...h, hp: newHp };
@@ -239,7 +247,7 @@ export class GameScene extends Phaser.Scene {
       this.driftlings,
     );
     if (pHits.length > 0) {
-      this.playerState = damagePlayer(this.playerState, timestamp);
+      this.playerState = damagePlayer(this.playerState, gameTimeMs);
       const hitByPlayer = new Set(pHits);
       this.driftlings = this.driftlings.map((d) => (hitByPlayer.has(d.id) ? { ...d, alive: false } : d));
     }
@@ -250,13 +258,18 @@ export class GameScene extends Phaser.Scene {
       this.husks,
     );
     if (pHuskHits.length > 0) {
-      this.playerState = damagePlayer(this.playerState, timestamp, 2);
+      this.playerState = damagePlayer(this.playerState, gameTimeMs, 2);
+    }
+
+    if (this.playerState.hp <= 0) {
+      this.scene.start('GameOverScene');
+      return;
     }
   }
 
   private drawScene(): void {
     const dt = this.effectiveDeltaMs / 1000;
-    const ts = this.currentTimestamp;
+    const ts = this.gameTimeMs;
     const probe = this.probeState;
     const reticle = this.reticleState;
 
