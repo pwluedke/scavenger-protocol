@@ -18,8 +18,8 @@ describe('salvageTier', () => {
 });
 
 describe('spawnWreck -- velocity inheritance', () => {
-  it('spawns with vy=25 (50% of Husk descent speed of 50 px/s)', () => {
-    expect(spawnWreck(1, 400, 300, 0).vy).toBe(25);
+  it('spawns with vy=40 (80% of Husk descent speed of 50 px/s)', () => {
+    expect(spawnWreck(1, 400, 300, 0).vy).toBe(40);
   });
 
   it('spawns with vx=0', () => {
@@ -43,16 +43,16 @@ describe('updateWrecks -- drifting phase', () => {
   });
 
   it('wreck moves downward during drifting phase at its spawn vy', () => {
-    // spawnWreck sets vy=25 px/s; after 1000ms (dt=1s) y should increase by 25
+    // spawnWreck sets vy=40 px/s; after 1000ms (dt=1s) y should increase by 40
     const wreck = spawnWreck(1, 400, 300, 0);
     const result = updateWrecks([wreck], 1000, 1000, null);
-    expect(result[0].y).toBeCloseTo(325, 1);
+    expect(result[0].y).toBeCloseTo(340, 1);
   });
 
-  it('wreck moves 0.25px downward in a 10ms frame at vy=25', () => {
-    const wreck = spawnWreck(1, 400, 300, 0); // vy=25
+  it('wreck moves 0.4px downward in a 10ms frame at vy=40', () => {
+    const wreck = spawnWreck(1, 400, 300, 0); // vy=40
     const result = updateWrecks([wreck], 10, 10, null);
-    expect(result[0].y).toBeCloseTo(300.25, 3);
+    expect(result[0].y).toBeCloseTo(300.4, 3);
   });
 });
 
@@ -93,12 +93,10 @@ describe('updateWrecks -- falling phase', () => {
     expect(result[0].scale).toBeCloseTo(0.5, 2);
   });
 
-  it('vy reaches 1.5x spawn vy after 4 seconds of falling', () => {
-    // FALLING_ACCELERATION ramps vy from 25 (1.0x) to 37.5 (1.5x) over 4s
-    // currentTime=7999 keeps scale just above 0 so the wreck survives the frame
-    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling', vy: 25 };
-    const result = updateWrecks([wreck], 4000, 7999, null); // dt=4s, just before scale hits 0
-    expect(result[0].vy).toBeCloseTo(37.5, 1); // 25 + 3.125*4
+  it('vy stays constant during falling (no acceleration)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
+    const result = updateWrecks([wreck], 1000, 5000, null); // dt=1s
+    expect(result[0].vy).toBe(40);
   });
 
   it('falling wreck moves downward', () => {

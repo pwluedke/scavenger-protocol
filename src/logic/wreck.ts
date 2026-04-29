@@ -4,8 +4,7 @@ export const WRECK_HIT_RADIUS = 16;
 
 const DRIFTING_DURATION_MS = 4000;
 const FALLING_DURATION_MS = 4000;
-const FALLING_ACCELERATION = 3.125; // px/s²: ramps vy from 1.0x to 1.5x spawn vy over FALLING_DURATION_MS
-const HUSK_SPAWN_VY = 25; // 50% of Husk descent speed (50px/s)
+const HUSK_SPAWN_VY = 40; // 80% of Husk descent speed (50px/s) -- slight slowdown on death
 
 export interface Wreck {
   id: number;
@@ -58,13 +57,12 @@ export function updateWrecks(
         }
         return { ...w, x, y, driftingAt };
       }
-      // falling phase
+      // falling phase -- constant velocity, scale shrinks to 0 over FALLING_DURATION_MS
       const fallingStartMs = w.driftingAt + DRIFTING_DURATION_MS;
       const fallingElapsedSec = (currentTimeMs - fallingStartMs) / 1000;
       const scale = Math.max(0, 1.0 - fallingElapsedSec / (FALLING_DURATION_MS / 1000));
-      const vy = w.vy + FALLING_ACCELERATION * dt;
       const y = w.y + w.vy * dt;
-      return { ...w, vy, y, scale, alive: scale > 0 };
+      return { ...w, y, scale, alive: scale > 0 };
     })
     .filter((w) => w.alive);
 }
