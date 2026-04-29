@@ -267,7 +267,7 @@ describe('TARGETING -- wreck candidate detection', () => {
   });
 
   it('leaves candidateWreckId null when wreck is in falling phase', () => {
-    const wreck: Wreck = { ...spawnWreck(1, 640, 200, 0), phase: 'falling' };
+    const wreck: Wreck = { ...spawnWreck(1, 640, 200, 0), phase: 'midFall' };
     const after = step(targeting, { wrecks: [wreck] });
     expect(after.candidateWreckId).toBeNull();
   });
@@ -321,7 +321,7 @@ describe('LAUNCHED -- wreck arrival', () => {
   });
 
   it('transitions to DESTROYED on arrival when target wreck has gone falling', () => {
-    const wreck: Wreck = { ...spawnWreck(7, 648, 630, 0), phase: 'falling' };
+    const wreck: Wreck = { ...spawnWreck(7, 648, 630, 0), phase: 'midFall' };
     const after = step(launchedAtWreck(7), { deltaMs: 16, wrecks: [wreck] });
     expect(after.status).toBe('DESTROYED');
     expect(after.targetWreckId).toBeNull();
@@ -360,7 +360,7 @@ describe('TETHERED -- salvage and wreck-falls', () => {
   });
 
   it('enters DESTROYED when tethered wreck transitions to falling', () => {
-    const wreck: Wreck = { ...spawnWreck(3, 400, 300, 0), phase: 'falling' };
+    const wreck: Wreck = { ...spawnWreck(3, 400, 300, 0), phase: 'midFall' };
     const after = step(tethered(3, 0), { wrecks: [wreck] });
     expect(after.status).toBe('DESTROYED');
     expect(after.targetWreckId).toBeNull();
