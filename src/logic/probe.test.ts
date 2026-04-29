@@ -13,6 +13,8 @@ import {
   TARGETING_COOLDOWN_TIMEOUT_MS,
 } from './probe';
 import type { InputState } from '../systems/input';
+import { spawnWreck } from './wreck';
+import type { Wreck } from './wreck';
 
 const IDLE_INPUT: InputState = {
   moveX: 0, moveY: 0, reticleX: 0, reticleY: 0, fire: false, probe: false, cancelProbe: false, pause: false, dash: false,
@@ -34,6 +36,7 @@ function step(
     reticleX?: number;
     reticleY?: number;
     probeJustPressed?: boolean;
+    wrecks?: Wreck[];
   } = {},
 ): ProbeState {
   return updateProbe(
@@ -46,6 +49,7 @@ function step(
     opts.reticleX ?? 640,
     opts.reticleY ?? 200,
     opts.probeJustPressed ?? false,
+    opts.wrecks ?? [],
   );
 }
 
@@ -62,6 +66,8 @@ describe('createProbe', () => {
     expect(p.cooldownTotalMs).toBe(0);
     expect(p.rewardFlashEndMs).toBe(0);
     expect(p.targetingCooldownEndMs).toBe(0);
+    expect(p.candidateWreckId).toBeNull();
+    expect(p.targetWreckId).toBeNull();
   });
 });
 
@@ -242,6 +248,133 @@ describe('probeTakeHit', () => {
     const after = probeTakeHit(lowHp, 500);
     expect(after.status).toBe('DESTROYED');
     expect(after.cooldownEndMs).toBe(500 + COOLDOWN_DESTROYED_MS);
+  });
+});
+
+describe('TARGETING -- wreck candidate detection', () => {
+  const targeting: ProbeState = { ...createProbe(), status: 'TARGETING', targetingStartMs: 0 };
+
+  it('sets candidateWreckId when settled wreck is within 30px of reticle', () => {
+    const wreck = spawnWreck(42, 640, 200, 0); // reticle default is (640, 200)
+    const after = step(targeting, { wrecks: [wreck] });
+    expect(after.candidateWreckId).toBe(42);
+  });
+
+  it('leaves candidateWreckId null when wreck is beyond 30px', () => {
+    const wreck = spawnWreck(1, 640, 300, 0); // 100px below default reticle (640, 200)
+    const after = step(targeting, { wrecks: [wreck] });
+    expect(after.candidateWreckId).toBeNull();
+  });
+
+  it('leaves candidateWreckId null when wreck is in falling phase', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 640, 200, 0), phase: 'falling' };
+    const after = step(targeting, { wrecks: [wreck] });
+    expect(after.candidateWreckId).toBeNull();
+  });
+
+  it('picks the nearest wreck when multiple are within range', () => {
+    const close = spawnWreck(10, 641, 200, 0); // 1px away
+    const far = spawnWreck(20, 650, 200, 0);   // 10px away
+    const after = step(targeting, { wrecks: [far, close] });
+    expect(after.candidateWreckId).toBe(10);
+  });
+
+  it('when launched with a candidate, sets targetX/Y to wreck position and emptyReturn=false', () => {
+    const wreck = spawnWreck(5, 640, 200, 0);
+    const after = step(targeting, { probeJustPressed: true, wrecks: [wreck] });
+    expect(after.status).toBe('LAUNCHED');
+    expect(after.targetX).toBe(640);
+    expect(after.targetY).toBe(200);
+    expect(after.targetWreckId).toBe(5);
+    expect(after.emptyReturn).toBe(false);
+  });
+
+  it('when launched with no candidate, flies to reticle with emptyReturn=true', () => {
+    const after = step(targeting, { probeJustPressed: true, reticleX: 800, reticleY: 300 });
+    expect(after.status).toBe('LAUNCHED');
+    expect(after.targetX).toBe(800);
+    expect(after.targetY).toBe(300);
+    expect(after.targetWreckId).toBeNull();
+    expect(after.emptyReturn).toBe(true);
+  });
+});
+
+describe('LAUNCHED -- wreck arrival', () => {
+  function launchedAtWreck(wreckId: number): ProbeState {
+    return {
+      ...createProbe(),
+      status: 'LAUNCHED',
+      x: 640,
+      y: 630,
+      targetX: 648,
+      targetY: 630,
+      targetWreckId: wreckId,
+      emptyReturn: false,
+    };
+  }
+
+  it('transitions to TETHERED on arrival when target wreck is still settled', () => {
+    const wreck = spawnWreck(7, 648, 630, 0);
+    const after = step(launchedAtWreck(7), { deltaMs: 16, timestamp: 100, wrecks: [wreck] });
+    expect(after.status).toBe('TETHERED');
+    expect(after.tetheredSinceMs).toBe(100);
+  });
+
+  it('transitions to DESTROYED on arrival when target wreck has gone falling', () => {
+    const wreck: Wreck = { ...spawnWreck(7, 648, 630, 0), phase: 'falling' };
+    const after = step(launchedAtWreck(7), { deltaMs: 16, wrecks: [wreck] });
+    expect(after.status).toBe('DESTROYED');
+    expect(after.targetWreckId).toBeNull();
+  });
+
+  it('transitions to DESTROYED on arrival when target wreck no longer exists', () => {
+    const after = step(launchedAtWreck(7), { deltaMs: 16, wrecks: [] });
+    expect(after.status).toBe('DESTROYED');
+  });
+});
+
+describe('TETHERED -- salvage and wreck-falls', () => {
+  function tethered(wreckId: number, tetheredSinceMs: number): ProbeState {
+    return { ...createProbe(), status: 'TETHERED', targetWreckId: wreckId, tetheredSinceMs };
+  }
+
+  it('returns to RETURNING with tier 1 on short hold (< 1000ms)', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { probeJustPressed: true, timestamp: 500, wrecks: [wreck] });
+    expect(after.status).toBe('RETURNING');
+    expect(after.rewardTier).toBe(1);
+    expect(after.emptyReturn).toBe(false);
+    expect(after.targetWreckId).toBeNull();
+  });
+
+  it('returns tier 2 for hold 1000ms to 2499ms', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { probeJustPressed: true, timestamp: 1500, wrecks: [wreck] });
+    expect(after.rewardTier).toBe(2);
+  });
+
+  it('returns tier 3 for hold >= 2500ms', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { probeJustPressed: true, timestamp: 3000, wrecks: [wreck] });
+    expect(after.rewardTier).toBe(3);
+  });
+
+  it('enters DESTROYED when tethered wreck transitions to falling', () => {
+    const wreck: Wreck = { ...spawnWreck(3, 400, 300, 0), phase: 'falling' };
+    const after = step(tethered(3, 0), { wrecks: [wreck] });
+    expect(after.status).toBe('DESTROYED');
+    expect(after.targetWreckId).toBeNull();
+  });
+
+  it('enters DESTROYED when tethered wreck no longer exists', () => {
+    const after = step(tethered(3, 0), { wrecks: [] });
+    expect(after.status).toBe('DESTROYED');
+  });
+
+  it('stays TETHERED when not pressing probe button and wreck is still settled', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { wrecks: [wreck] });
+    expect(after.status).toBe('TETHERED');
   });
 });
 
