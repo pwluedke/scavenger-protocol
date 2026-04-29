@@ -11,6 +11,7 @@ import {
   TARGETING_MAX_MS,
   TARGETING_COOLDOWN_CANCEL_MS,
   TARGETING_COOLDOWN_TIMEOUT_MS,
+  TETHER_DURATION_CAP_MS,
 } from './probe';
 import type { InputState } from '../systems/input';
 import { spawnWreck } from './wreck';
@@ -190,6 +191,22 @@ describe('RETURNING', () => {
     expect(after.cooldownEndMs).toBe(1000 + COOLDOWN_RETURN_MS);
   });
 
+  it('homes to live player position from wreck departure point; no stale wreck coordinates', () => {
+    // Probe released from wreck at (400, 300); player is at default (640, 630)
+    const returning: ProbeState = {
+      ...createProbe(),
+      status: 'RETURNING',
+      x: 400,
+      y: 300,
+      emptyReturn: false,
+      targetWreckId: null,
+    };
+    const after = step(returning, { deltaMs: 16 });
+    expect(after.x).toBeGreaterThan(400);
+    expect(after.y).toBeGreaterThan(300);
+    expect(after.status).toBe('RETURNING');
+  });
+
   it('does not set rewardFlashEndMs when emptyReturn is true', () => {
     const returning: ProbeState = {
       ...createProbe(),
@@ -267,7 +284,7 @@ describe('TARGETING -- wreck candidate detection', () => {
   });
 
   it('leaves candidateWreckId null when wreck is in falling phase', () => {
-    const wreck: Wreck = { ...spawnWreck(1, 640, 200, 0), phase: 'falling' };
+    const wreck: Wreck = { ...spawnWreck(1, 640, 200, 0), phase: 'midFall' };
     const after = step(targeting, { wrecks: [wreck] });
     expect(after.candidateWreckId).toBeNull();
   });
@@ -299,6 +316,26 @@ describe('TARGETING -- wreck candidate detection', () => {
   });
 });
 
+describe('LAUNCHED -- live wreck tracking', () => {
+  it('homes toward wreck current position, not launch-time coordinates', () => {
+    // Probe launched when wreck was at (648, 630); wreck has since drifted to y=670
+    const movedWreck: Wreck = { ...spawnWreck(7, 648, 670, 0) };
+    const launched: ProbeState = {
+      ...createProbe(),
+      status: 'LAUNCHED',
+      x: 100,
+      y: 630,
+      targetX: 648,
+      targetY: 630, // stale launch-time position
+      targetWreckId: 7,
+      emptyReturn: false,
+    };
+    const after = step(launched, { deltaMs: 16, wrecks: [movedWreck] });
+    // If tracking live position (y=670) probe y increases; if using stale (y=630) it stays flat
+    expect(after.y).toBeGreaterThan(630);
+  });
+});
+
 describe('LAUNCHED -- wreck arrival', () => {
   function launchedAtWreck(wreckId: number): ProbeState {
     return {
@@ -321,7 +358,7 @@ describe('LAUNCHED -- wreck arrival', () => {
   });
 
   it('transitions to DESTROYED on arrival when target wreck has gone falling', () => {
-    const wreck: Wreck = { ...spawnWreck(7, 648, 630, 0), phase: 'falling' };
+    const wreck: Wreck = { ...spawnWreck(7, 648, 630, 0), phase: 'midFall' };
     const after = step(launchedAtWreck(7), { deltaMs: 16, wrecks: [wreck] });
     expect(after.status).toBe('DESTROYED');
     expect(after.targetWreckId).toBeNull();
@@ -360,7 +397,7 @@ describe('TETHERED -- salvage and wreck-falls', () => {
   });
 
   it('enters DESTROYED when tethered wreck transitions to falling', () => {
-    const wreck: Wreck = { ...spawnWreck(3, 400, 300, 0), phase: 'falling' };
+    const wreck: Wreck = { ...spawnWreck(3, 400, 300, 0), phase: 'midFall' };
     const after = step(tethered(3, 0), { wrecks: [wreck] });
     expect(after.status).toBe('DESTROYED');
     expect(after.targetWreckId).toBeNull();
@@ -374,6 +411,28 @@ describe('TETHERED -- salvage and wreck-falls', () => {
   it('stays TETHERED when not pressing probe button and wreck is still drifting', () => {
     const wreck = spawnWreck(3, 400, 300, 0);
     const after = step(tethered(3, 0), { wrecks: [wreck] });
+    expect(after.status).toBe('TETHERED');
+  });
+
+  it('probe position follows wreck while tethered', () => {
+    const movedWreck: Wreck = { ...spawnWreck(3, 400, 340, 0) }; // wreck drifted to y=340
+    const after = step(tethered(3, 0), { wrecks: [movedWreck] });
+    expect(after.x).toBe(400);
+    expect(after.y).toBe(340);
+    expect(after.status).toBe('TETHERED');
+  });
+
+  it('auto-releases at TETHER_DURATION_CAP_MS with rewardTier 3', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { timestamp: TETHER_DURATION_CAP_MS, wrecks: [wreck] });
+    expect(after.status).toBe('RETURNING');
+    expect(after.rewardTier).toBe(3);
+    expect(after.targetWreckId).toBeNull();
+  });
+
+  it('stays tethered at one ms before cap without explicit release', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { timestamp: TETHER_DURATION_CAP_MS - 1, wrecks: [wreck] });
     expect(after.status).toBe('TETHERED');
   });
 });

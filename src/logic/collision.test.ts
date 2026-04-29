@@ -128,8 +128,8 @@ function makeHusk(id: number, x: number, y: number, alive = true): Husk {
   return { id, x, y, hp: 4, alive, spawnedAtMs: 0 };
 }
 
-function makeWreck(id: number, x: number, y: number, phase: 'drifting' | 'falling' = 'drifting', alive = true): Wreck {
-  return { id, x, y, vx: 0, vy: 25, phase, driftingAt: 0, scale: 1.0, alive };
+function makeWreck(id: number, x: number, y: number, phase: 'drifting' | 'midFall' | 'lateFall' = 'drifting', alive = true): Wreck {
+  return { id, x, y, vx: 0, vy: 25, phase, driftingAt: 0, alive };
 }
 
 const COMBINED_BULLET_HUSK = BULLET_HIT_RADIUS + HUSK_HIT_RADIUS; // 28
@@ -206,7 +206,7 @@ describe('playerWreckHits', () => {
   });
 
   it('skips falling wrecks', () => {
-    expect(playerWreckHits(player, [makeWreck(1, 640, 600, 'falling')])).toHaveLength(0);
+    expect(playerWreckHits(player, [makeWreck(1, 640, 600, 'midFall')])).toHaveLength(0);
   });
 
   it('skips wrecks with alive=false', () => {

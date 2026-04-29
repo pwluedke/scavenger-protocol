@@ -15,6 +15,9 @@ import { createSpawner, updateSpawner, SpawnerState } from '../logic/spawner';
 import { bulletEnemyHits, playerEnemyHits, bulletHuskHits, playerHuskHits } from '../logic/collision';
 import { updateWrecks, spawnWreck } from '../logic/wreck';
 import type { Wreck } from '../logic/wreck';
+import { updateDebrisFlashes, addGroundStain } from '../logic/groundEffects';
+import type { DebrisFlash, GroundStain } from '../logic/groundEffects';
+import { LAYER_BACKGROUND } from '../logic/layers';
 import { createRunState, RunState } from '../logic/run';
 import { createRng, Rng } from '../logic/rng';
 import { ASSETS } from '../config/assets';
@@ -23,6 +26,7 @@ import { Bullets } from '../entities/Bullets';
 import { Probe as ProbeEntity } from '../entities/Probe';
 import { Enemy } from '../entities/Enemy';
 import { Wreck as WreckEntity } from '../entities/Wreck';
+import { GroundEffects } from '../entities/GroundEffects';
 
 const SLOWMO_FACTOR = 0.2;
 // TODO: vary by game state per tuning.md
@@ -45,6 +49,9 @@ export class GameScene extends Phaser.Scene {
   private driftlings: Driftling[] = [];
   private husks: Husk[] = [];
   private wrecks: Wreck[] = [];
+  private groundStains: GroundStain[] = [];
+  private debrisFlashes: DebrisFlash[] = [];
+  private groundEffectsEntity!: GroundEffects;
   private spawnerState!: SpawnerState;
   private spawnerRng!: Rng;
   private runState!: RunState;
@@ -73,19 +80,20 @@ export class GameScene extends Phaser.Scene {
     this.runState = createRunState();
 
     if (ASSETS.backgroundMode === 'tile') {
-      this.background = this.add.tileSprite(640, 360, 1280, 720, ASSETS.background);
+      this.background = this.add.tileSprite(640, 360, 1280, 720, ASSETS.background).setDepth(LAYER_BACKGROUND);
     } else {
       const tex = this.textures.get(ASSETS.background);
       const h = tex.getSourceImage().height;
-      const imgA = this.add.image(640, 0, ASSETS.background).setOrigin(0.5, 0);
-      const imgB = this.add.image(640, -h, ASSETS.background).setOrigin(0.5, 0);
+      const imgA = this.add.image(640, 0, ASSETS.background).setOrigin(0.5, 0).setDepth(LAYER_BACKGROUND);
+      const imgB = this.add.image(640, -h, ASSETS.background).setOrigin(0.5, 0).setDepth(LAYER_BACKGROUND);
       this.scrollImages = [imgA, imgB];
     }
 
     this.spawnerState = createSpawner();
     this.spawnerRng = createRng('run-seed-spawner');
 
-    // Draw order (back to front): wrecks, enemies, bullets, probe, player, HUD
+    // Draw order (back to front): ground effects, wrecks, enemies, bullets, probe, player, HUD
+    this.groundEffectsEntity = new GroundEffects(this);
     this.wreckEntity = new WreckEntity(this);
     this.enemyEntity = new Enemy(this);
     this.bulletsEntity = new Bullets(this);
@@ -139,7 +147,24 @@ export class GameScene extends Phaser.Scene {
 
     // Update wrecks before probe so probe arrival sees the current wreck phase
     const tetheredWreckId = this.probeState.status === 'TETHERED' ? this.probeState.targetWreckId : null;
-    this.wrecks = updateWrecks(this.wrecks, effectiveDeltaMs, timestamp, tetheredWreckId);
+    const { wrecks: updatedWrecks, newlyGrounded } = updateWrecks(this.wrecks, effectiveDeltaMs, timestamp, tetheredWreckId);
+    this.wrecks = updatedWrecks;
+
+    // Ground effects: expire old flashes, then emit new ones for wrecks that just grounded
+    this.debrisFlashes = updateDebrisFlashes(this.debrisFlashes, timestamp);
+    for (const pos of newlyGrounded) {
+      this.debrisFlashes = [...this.debrisFlashes, { x: pos.x, y: pos.y, createdAt: timestamp }];
+      this.groundStains = addGroundStain(this.groundStains, pos.x, pos.y);
+    }
+
+    // Scroll ground effects with the background so stains appear fixed on the terrain
+    const scrollDelta = this.currentScrollSpeed * (effectiveDeltaMs / 1000);
+    if (this.groundStains.length > 0) {
+      this.groundStains = this.groundStains.map((s) => ({ ...s, y: s.y + scrollDelta }));
+    }
+    if (this.debrisFlashes.length > 0) {
+      this.debrisFlashes = this.debrisFlashes.map((f) => ({ ...f, y: f.y + scrollDelta }));
+    }
 
     const probeJustPressed = inputFrame.justPressed.has(LogicalAction.PROBE);
     this.probeState = updateProbe(
@@ -250,8 +275,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Entity rendering -- draw order matches creation order (back to front)
-    this.wreckEntity.update(this.wrecks, probe.candidateWreckId);
+    // Entity rendering -- depth values determine draw order, not call order
+    this.groundEffectsEntity.update(this.groundStains, this.debrisFlashes, ts);
+    this.wreckEntity.update(this.wrecks, probe.candidateWreckId, ts);
     this.enemyEntity.update(this.driftlings, this.husks);
     this.bulletsEntity.update(this.playerState.bullets);
     this.probeEntity.update(probe, reticle, ts, this.playerState.x, this.playerState.y);

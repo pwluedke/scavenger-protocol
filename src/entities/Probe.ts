@@ -3,12 +3,13 @@
 // because the tether line needs player position and the charge ring needs elapsed time.
 import Phaser from 'phaser';
 import type { ProbeState, ReticleState } from '../logic/probe';
+import { LAYER_COMBAT } from '../logic/layers';
 
 export class Probe {
   private graphics: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene) {
-    this.graphics = scene.add.graphics();
+    this.graphics = scene.add.graphics().setDepth(LAYER_COMBAT);
   }
 
   update(

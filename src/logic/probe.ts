@@ -11,6 +11,7 @@ export const COOLDOWN_DESTROYED_MS = 8000;
 export const TARGETING_MAX_MS = 3000;
 export const TARGETING_COOLDOWN_CANCEL_MS = 1500;
 export const TARGETING_COOLDOWN_TIMEOUT_MS = 3000;
+export const TETHER_DURATION_CAP_MS = 6000;
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
 const RETICLE_LOCK_RADIUS = 30; // px: reticle must be within this distance to lock onto a drifting wreck
@@ -180,19 +181,29 @@ export function updateProbe(
     }
 
     case 'LAUNCHED': {
-      const dx = probe.targetX - probe.x;
-      const dy = probe.targetY - probe.y;
+      // Track wreck's current position each frame; fall back to stored coords if wreck not found
+      let targetX = probe.targetX;
+      let targetY = probe.targetY;
+      if (probe.targetWreckId !== null) {
+        const liveWreck = wrecks.find((w) => w.id === probe.targetWreckId);
+        if (liveWreck) {
+          targetX = liveWreck.x;
+          targetY = liveWreck.y;
+        }
+      }
+      const dx = targetX - probe.x;
+      const dy = targetY - probe.y;
       const distToTarget = Math.sqrt(dx * dx + dy * dy);
       const moveDistance = PROBE_TRAVEL_SPEED * dt;
       if (distToTarget === 0 || moveDistance >= distToTarget) {
         if (probe.targetWreckId !== null) {
           const targetWreck = wrecks.find((w) => w.id === probe.targetWreckId) ?? null;
           if (!targetWreck || targetWreck.phase !== 'drifting') {
-            return { ...probe, x: probe.targetX, y: probe.targetY, status: 'DESTROYED', targetWreckId: null };
+            return { ...probe, x: targetX, y: targetY, status: 'DESTROYED', targetWreckId: null };
           }
-          return { ...probe, x: probe.targetX, y: probe.targetY, status: 'TETHERED', tetheredSinceMs: timestamp };
+          return { ...probe, x: targetX, y: targetY, status: 'TETHERED', tetheredSinceMs: timestamp };
         }
-        return { ...probe, x: probe.targetX, y: probe.targetY, status: 'RETURNING', emptyReturn: true };
+        return { ...probe, x: targetX, y: targetY, status: 'RETURNING', emptyReturn: true };
       }
       const ratio = moveDistance / distToTarget;
       return { ...probe, x: probe.x + dx * ratio, y: probe.y + dy * ratio };
@@ -203,12 +214,20 @@ export function updateProbe(
       if (!tetheredWreck || tetheredWreck.phase !== 'drifting') {
         return { ...probe, status: 'DESTROYED', targetWreckId: null };
       }
-      if (probeJustPressed) {
-        const holdMs = timestamp - probe.tetheredSinceMs;
-        const tier = salvageTier(holdMs);
-        return { ...probe, status: 'RETURNING', rewardTier: tier, emptyReturn: false, targetWreckId: null };
+      const holdMs = timestamp - probe.tetheredSinceMs;
+      if (holdMs >= TETHER_DURATION_CAP_MS || probeJustPressed) {
+        return {
+          ...probe,
+          x: tetheredWreck.x,
+          y: tetheredWreck.y,
+          status: 'RETURNING',
+          rewardTier: salvageTier(holdMs),
+          emptyReturn: false,
+          targetWreckId: null,
+        };
       }
-      return probe;
+      // Follow wreck's current position each frame
+      return { ...probe, x: tetheredWreck.x, y: tetheredWreck.y };
     }
 
     case 'RETURNING': {

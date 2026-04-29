@@ -1,4 +1,4 @@
-import { spawnWreck, updateWrecks, salvageTier, Wreck } from './wreck';
+import { spawnWreck, updateWrecks, salvageTier, wreckScale, Wreck } from './wreck';
 
 describe('salvageTier', () => {
   it('returns 1 for hold < 1000ms', () => {
@@ -30,92 +30,172 @@ describe('spawnWreck -- velocity inheritance', () => {
 describe('updateWrecks -- drifting phase', () => {
   it('wreck stays drifting before 4000ms elapses', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
-    const result = updateWrecks([wreck], 100, 3999, null);
-    expect(result).toHaveLength(1);
-    expect(result[0].phase).toBe('drifting');
+    const { wrecks } = updateWrecks([wreck], 100, 3999, null);
+    expect(wrecks).toHaveLength(1);
+    expect(wrecks[0].phase).toBe('drifting');
   });
 
-  it('wreck transitions to falling at 4000ms', () => {
+  it('wreck transitions to midFall at 4000ms', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
-    const result = updateWrecks([wreck], 100, 4000, null);
-    expect(result).toHaveLength(1);
-    expect(result[0].phase).toBe('falling');
+    const { wrecks } = updateWrecks([wreck], 100, 4000, null);
+    expect(wrecks).toHaveLength(1);
+    expect(wrecks[0].phase).toBe('midFall');
   });
 
   it('wreck moves downward during drifting phase at its spawn vy', () => {
     // spawnWreck sets vy=40 px/s; after 1000ms (dt=1s) y should increase by 40
     const wreck = spawnWreck(1, 400, 300, 0);
-    const result = updateWrecks([wreck], 1000, 1000, null);
-    expect(result[0].y).toBeCloseTo(340, 1);
+    const { wrecks } = updateWrecks([wreck], 1000, 1000, null);
+    expect(wrecks[0].y).toBeCloseTo(340, 1);
   });
 
   it('wreck moves 0.4px downward in a 10ms frame at vy=40', () => {
-    const wreck = spawnWreck(1, 400, 300, 0); // vy=40
-    const result = updateWrecks([wreck], 10, 10, null);
-    expect(result[0].y).toBeCloseTo(300.4, 3);
+    const wreck = spawnWreck(1, 400, 300, 0);
+    const { wrecks } = updateWrecks([wreck], 10, 10, null);
+    expect(wrecks[0].y).toBeCloseTo(300.4, 3);
   });
 });
 
 describe('updateWrecks -- timer pause while tethered', () => {
   it('tethering slides driftingAt forward by deltaMs each frame', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
-    const result = updateWrecks([wreck], 500, 500, 1);
-    expect(result[0].driftingAt).toBe(500);
+    const { wrecks } = updateWrecks([wreck], 500, 500, 1);
+    expect(wrecks[0].driftingAt).toBe(500);
   });
 
   it('un-tethered wreck does not slide driftingAt', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
-    const result = updateWrecks([wreck], 500, 500, null);
-    expect(result[0].driftingAt).toBe(0);
+    const { wrecks } = updateWrecks([wreck], 500, 500, null);
+    expect(wrecks[0].driftingAt).toBe(0);
   });
 
   it('tethered wreck stays drifting past the un-tethered 4000ms deadline', () => {
     // Tether for 2000ms: driftingAt slides to ~2000, deadline becomes 6000ms
     let wrecks = [spawnWreck(1, 400, 300, 0)];
     for (let t = 100; t <= 2000; t += 100) {
-      wrecks = updateWrecks(wrecks, 100, t, 1);
+      ({ wrecks } = updateWrecks(wrecks, 100, t, 1));
     }
     expect(wrecks[0].driftingAt).toBeCloseTo(2000, 0);
     // At t=4000 (still 2000ms before the new 6000ms deadline) -- still drifting
-    const midResult = updateWrecks(wrecks, 100, 4000, null);
+    const { wrecks: midResult } = updateWrecks(wrecks, 100, 4000, null);
     expect(midResult[0].phase).toBe('drifting');
-    // At t=6000 -- transitions to falling
-    const lateResult = updateWrecks(wrecks, 100, 6000, null);
-    expect(lateResult[0].phase).toBe('falling');
+    // At t=6000 -- transitions to midFall
+    const { wrecks: lateResult } = updateWrecks(wrecks, 100, 6000, null);
+    expect(lateResult[0].phase).toBe('midFall');
+  });
+
+  it('tethering at the 4000ms edge prevents transition to midFall', () => {
+    // One frame of 200ms tether at timestamp 4100: driftingAt 0->200, elapsed=3900ms, still drifting
+    const wreck = spawnWreck(1, 400, 300, 0);
+    const { wrecks } = updateWrecks([wreck], 200, 4100, 1);
+    expect(wrecks[0].phase).toBe('drifting');
   });
 });
 
-describe('updateWrecks -- falling phase', () => {
-  it('scale at 2000ms into falling is 0.5', () => {
-    // driftingAt=0, fallingStartMs=4000, currentTime=6000 -> elapsed=2s, scale=1-2/4=0.5
-    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
-    const result = updateWrecks([wreck], 16, 6000, null);
-    expect(result[0].scale).toBeCloseTo(0.5, 2);
+describe('updateWrecks -- midFall phase', () => {
+  it('wreck transitions to lateFall at 6000ms (4000ms drifting + 2000ms midFall)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    const { wrecks } = updateWrecks([wreck], 16, 6000, null);
+    expect(wrecks[0].phase).toBe('lateFall');
   });
 
-  it('vy stays constant during falling (no acceleration)', () => {
-    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
-    const result = updateWrecks([wreck], 1000, 5000, null); // dt=1s
-    expect(result[0].vy).toBe(40);
+  it('wreck stays in midFall before 6000ms', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    const { wrecks } = updateWrecks([wreck], 16, 5999, null);
+    expect(wrecks[0].phase).toBe('midFall');
   });
 
-  it('falling wreck moves downward', () => {
-    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
-    const result = updateWrecks([wreck], 100, 4100, null);
-    expect(result[0].y).toBeGreaterThan(300);
+  it('midFall wreck continues moving downward', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    const { wrecks } = updateWrecks([wreck], 100, 4100, null);
+    expect(wrecks[0].y).toBeGreaterThan(300);
+  });
+});
+
+describe('updateWrecks -- lateFall phase', () => {
+  it('wreck is removed from array at 8000ms', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    const { wrecks } = updateWrecks([wreck], 16, 8100, null);
+    expect(wrecks).toHaveLength(0);
   });
 
-  it('wreck is removed when scale reaches 0', () => {
-    // driftingAt=0, fallingStartMs=4000, scale=0 at currentTime=8000
-    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
-    const result = updateWrecks([wreck], 100, 8100, null);
-    expect(result).toHaveLength(0);
+  it('newlyGrounded contains position of expired wreck', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    const { newlyGrounded } = updateWrecks([wreck], 16, 8100, null);
+    expect(newlyGrounded).toHaveLength(1);
+    expect(newlyGrounded[0].x).toBeCloseTo(400, 0);
+    expect(newlyGrounded[0].y).toBeGreaterThan(300);
+  });
+
+  it('wreck stays in lateFall before 8000ms', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    const { wrecks } = updateWrecks([wreck], 16, 7999, null);
+    expect(wrecks[0].phase).toBe('lateFall');
+  });
+
+  it('lateFall wreck continues moving downward', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    const { wrecks } = updateWrecks([wreck], 100, 6100, null);
+    expect(wrecks[0].y).toBeGreaterThan(300);
+  });
+});
+
+describe('updateWrecks -- velocity constant through all phases', () => {
+  it('vy stays constant at 40 in midFall phase', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    const { wrecks } = updateWrecks([wreck], 1000, 5000, null);
+    expect(wrecks[0].vy).toBe(40);
+  });
+
+  it('vy stays constant at 40 in lateFall phase', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    const { wrecks } = updateWrecks([wreck], 100, 6100, null);
+    expect(wrecks[0].vy).toBe(40);
+  });
+});
+
+describe('wreckScale', () => {
+  it('returns 1.0 for drifting phase at any time', () => {
+    const wreck = spawnWreck(1, 400, 300, 0);
+    expect(wreckScale(wreck, 0)).toBeCloseTo(1.0);
+    expect(wreckScale(wreck, 3999)).toBeCloseTo(1.0);
+  });
+
+  it('returns 1.0 at the start of midFall (t=4000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    expect(wreckScale(wreck, 4000)).toBeCloseTo(1.0);
+  });
+
+  it('returns 0.85 at the midpoint of midFall (t=5000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    expect(wreckScale(wreck, 5000)).toBeCloseTo(0.85);
+  });
+
+  it('returns 0.7 at the end of midFall (t=6000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    expect(wreckScale(wreck, 6000)).toBeCloseTo(0.7);
+  });
+
+  it('returns 0.7 at the start of lateFall (t=6000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    expect(wreckScale(wreck, 6000)).toBeCloseTo(0.7);
+  });
+
+  it('returns 0.55 at the midpoint of lateFall (t=7000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    expect(wreckScale(wreck, 7000)).toBeCloseTo(0.55);
+  });
+
+  it('returns 0.4 at the end of lateFall (t=8000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    expect(wreckScale(wreck, 8000)).toBeCloseTo(0.4);
   });
 });
 
 describe('updateWrecks -- alive filter', () => {
   it('removes wrecks with alive=false', () => {
     const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), alive: false };
-    expect(updateWrecks([wreck], 16, 1000, null)).toHaveLength(0);
+    const { wrecks } = updateWrecks([wreck], 16, 1000, null);
+    expect(wrecks).toHaveLength(0);
   });
 });
