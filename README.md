@@ -3,4 +3,4 @@ Retrofuturistic vertical shmup with tether-probe salvage mechanics. Phaser 3 + T
 
 ## Deployment
 
-Production deploys are manual and triggered via GitHub Actions. See [docs/deployment.md](docs/deployment.md) for instructions.
+Production deploys are intentional and manually published in the Netlify UI. See [docs/deployment.md](docs/deployment.md) for instructions.
