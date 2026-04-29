@@ -3,7 +3,8 @@
 export const WRECK_HIT_RADIUS = 16;
 
 const DRIFTING_DURATION_MS = 4000;
-const FALLING_DURATION_MS = 4000;
+const MID_FALL_DURATION_MS = 2000;
+const LATE_FALL_DURATION_MS = 2000;
 const HUSK_SPAWN_VY = 40; // 80% of Husk descent speed (50px/s) -- slight slowdown on death
 
 export interface Wreck {
@@ -12,9 +13,8 @@ export interface Wreck {
   y: number;
   vx: number;
   vy: number;
-  phase: 'drifting' | 'falling';
+  phase: 'drifting' | 'midFall' | 'lateFall';
   driftingAt: number; // ms timestamp; slides forward while tethered to pause the timer
-  scale: number; // 1.0 to 0.0 during falling phase
   alive: boolean;
 }
 
@@ -27,7 +27,6 @@ export function spawnWreck(id: number, x: number, y: number, spawnTimeMs: number
     vy: HUSK_SPAWN_VY,
     phase: 'drifting',
     driftingAt: spawnTimeMs,
-    scale: 1.0,
     alive: true,
   };
 }
@@ -43,26 +42,38 @@ export function updateWrecks(
   deltaMs: number,
   currentTimeMs: number,
   tetheredWreckId: number | null,
-): Wreck[] {
+): { wrecks: Wreck[]; newlyGrounded: { x: number; y: number }[] } {
   const dt = deltaMs / 1000;
-  return wrecks
-    .filter((w) => w.alive)
-    .map((w): Wreck => {
-      if (w.phase === 'drifting') {
-        const driftingAt = w.id === tetheredWreckId ? w.driftingAt + deltaMs : w.driftingAt;
-        const x = w.x + w.vx * dt;
-        const y = w.y + w.vy * dt;
-        if (currentTimeMs - driftingAt >= DRIFTING_DURATION_MS) {
-          return { ...w, x, y, driftingAt, phase: 'falling' };
-        }
-        return { ...w, x, y, driftingAt };
+  const newlyGrounded: { x: number; y: number }[] = [];
+  const result: Wreck[] = [];
+
+  for (const w of wrecks) {
+    if (!w.alive) continue;
+    const x = w.x + w.vx * dt;
+    const y = w.y + w.vy * dt;
+
+    if (w.phase === 'drifting') {
+      const driftingAt = w.id === tetheredWreckId ? w.driftingAt + deltaMs : w.driftingAt;
+      if (currentTimeMs - driftingAt >= DRIFTING_DURATION_MS) {
+        result.push({ ...w, x, y, driftingAt, phase: 'midFall' });
+      } else {
+        result.push({ ...w, x, y, driftingAt });
       }
-      // falling phase -- constant velocity, scale shrinks to 0 over FALLING_DURATION_MS
-      const fallingStartMs = w.driftingAt + DRIFTING_DURATION_MS;
-      const fallingElapsedSec = (currentTimeMs - fallingStartMs) / 1000;
-      const scale = Math.max(0, 1.0 - fallingElapsedSec / (FALLING_DURATION_MS / 1000));
-      const y = w.y + w.vy * dt;
-      return { ...w, y, scale, alive: scale > 0 };
-    })
-    .filter((w) => w.alive);
+    } else if (w.phase === 'midFall') {
+      if (currentTimeMs - w.driftingAt >= DRIFTING_DURATION_MS + MID_FALL_DURATION_MS) {
+        result.push({ ...w, x, y, phase: 'lateFall' });
+      } else {
+        result.push({ ...w, x, y });
+      }
+    } else {
+      // lateFall
+      if (currentTimeMs - w.driftingAt >= DRIFTING_DURATION_MS + MID_FALL_DURATION_MS + LATE_FALL_DURATION_MS) {
+        newlyGrounded.push({ x, y });
+      } else {
+        result.push({ ...w, x, y });
+      }
+    }
+  }
+
+  return { wrecks: result, newlyGrounded };
 }
