@@ -93,10 +93,12 @@ describe('updateWrecks -- falling phase', () => {
     expect(result[0].scale).toBeCloseTo(0.5, 2);
   });
 
-  it('vy accelerates at 40 px/s² during falling', () => {
+  it('vy reaches 1.5x spawn vy after 4 seconds of falling', () => {
+    // FALLING_ACCELERATION ramps vy from 25 (1.0x) to 37.5 (1.5x) over 4s
+    // currentTime=7999 keeps scale just above 0 so the wreck survives the frame
     const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling', vy: 25 };
-    const result = updateWrecks([wreck], 1000, 5000, null); // dt=1s
-    expect(result[0].vy).toBeCloseTo(65, 1); // 25 + 40*1
+    const result = updateWrecks([wreck], 4000, 7999, null); // dt=4s, just before scale hits 0
+    expect(result[0].vy).toBeCloseTo(37.5, 1); // 25 + 3.125*4
   });
 
   it('falling wreck moves downward', () => {

@@ -4,7 +4,7 @@ export const WRECK_HIT_RADIUS = 16;
 
 const DRIFTING_DURATION_MS = 4000;
 const FALLING_DURATION_MS = 4000;
-const FALLING_ACCELERATION = 40; // px/s²
+const FALLING_ACCELERATION = 3.125; // px/s²: ramps vy from 1.0x to 1.5x spawn vy over FALLING_DURATION_MS
 const HUSK_SPAWN_VY = 25; // 50% of Husk descent speed (50px/s)
 
 export interface Wreck {
