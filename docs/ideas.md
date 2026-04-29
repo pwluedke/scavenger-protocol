@@ -808,6 +808,30 @@ Status: parking lot. Major version candidate, not MVP.
 
 ---
 
+## Spawning / Run Variance
+
+### Per-run seed for spawner randomization
+
+Current bug: every run produces Husks (and Driftlings) in identical positions, frequencies, and amplitudes. This is because the spawner Rng is seeded with the hardcoded string 'run-seed-spawner' in GameScene.create(). Same seed every run = same procedural output every run.
+
+Fix: generate a fresh seed for each run. Options:
+
+1. Use Date.now() as the seed at the start of each run. Loses determinism (different seed every run) but easy.
+2. Use a counter that increments across runs. Deterministic across replays of the same player session, varies across runs.
+3. Provide a seed input UI for "daily challenge" or "shared run" features. Player can manually enter a seed for a known run.
+
+For MVP, option 1 is probably right - seed = Date.now() at run start. Stored on RunState as runSeed. Used to create the spawner Rng.
+
+Determinism is preserved within a run (same seed = same outcomes), just varies between runs.
+
+Why this matters: replayability. Currently every death is followed by an identical run. Players will pattern-recognize within minutes. Real procedural variety is core to the roguelite identity.
+
+Risk: replay/debugging gets harder when seeds vary. Counter-mitigation: log the runSeed to console at run start so a specific run can be reproduced if needed.
+
+Status: parking lot. High priority post-MVP because it directly affects replayability.
+
+---
+
 ## Boss Design
 
 ### Behemoth boss is built from your unsalvaged wrecks
