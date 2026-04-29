@@ -190,6 +190,22 @@ describe('RETURNING', () => {
     expect(after.cooldownEndMs).toBe(1000 + COOLDOWN_RETURN_MS);
   });
 
+  it('homes to live player position from wreck departure point; no stale wreck coordinates', () => {
+    // Probe released from wreck at (400, 300); player is at default (640, 630)
+    const returning: ProbeState = {
+      ...createProbe(),
+      status: 'RETURNING',
+      x: 400,
+      y: 300,
+      emptyReturn: false,
+      targetWreckId: null,
+    };
+    const after = step(returning, { deltaMs: 16 });
+    expect(after.x).toBeGreaterThan(400);
+    expect(after.y).toBeGreaterThan(300);
+    expect(after.status).toBe('RETURNING');
+  });
+
   it('does not set rewardFlashEndMs when emptyReturn is true', () => {
     const returning: ProbeState = {
       ...createProbe(),
@@ -299,6 +315,26 @@ describe('TARGETING -- wreck candidate detection', () => {
   });
 });
 
+describe('LAUNCHED -- live wreck tracking', () => {
+  it('homes toward wreck current position, not launch-time coordinates', () => {
+    // Probe launched when wreck was at (648, 630); wreck has since drifted to y=670
+    const movedWreck: Wreck = { ...spawnWreck(7, 648, 670, 0) };
+    const launched: ProbeState = {
+      ...createProbe(),
+      status: 'LAUNCHED',
+      x: 100,
+      y: 630,
+      targetX: 648,
+      targetY: 630, // stale launch-time position
+      targetWreckId: 7,
+      emptyReturn: false,
+    };
+    const after = step(launched, { deltaMs: 16, wrecks: [movedWreck] });
+    // If tracking live position (y=670) probe y increases; if using stale (y=630) it stays flat
+    expect(after.y).toBeGreaterThan(630);
+  });
+});
+
 describe('LAUNCHED -- wreck arrival', () => {
   function launchedAtWreck(wreckId: number): ProbeState {
     return {
@@ -374,6 +410,14 @@ describe('TETHERED -- salvage and wreck-falls', () => {
   it('stays TETHERED when not pressing probe button and wreck is still drifting', () => {
     const wreck = spawnWreck(3, 400, 300, 0);
     const after = step(tethered(3, 0), { wrecks: [wreck] });
+    expect(after.status).toBe('TETHERED');
+  });
+
+  it('probe position follows wreck while tethered', () => {
+    const movedWreck: Wreck = { ...spawnWreck(3, 400, 340, 0) }; // wreck drifted to y=340
+    const after = step(tethered(3, 0), { wrecks: [movedWreck] });
+    expect(after.x).toBe(400);
+    expect(after.y).toBe(340);
     expect(after.status).toBe('TETHERED');
   });
 });
