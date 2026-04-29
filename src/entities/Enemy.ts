@@ -1,12 +1,13 @@
 // Phaser render entity only. Reads from logic layer state.
 import Phaser from 'phaser';
 import type { Driftling, Husk } from '../logic/enemies';
+import { LAYER_COMBAT } from '../logic/layers';
 
 export class Enemy {
   private graphics: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene) {
-    this.graphics = scene.add.graphics();
+    this.graphics = scene.add.graphics().setDepth(LAYER_COMBAT);
   }
 
   update(driftlings: Driftling[], husks: Husk[]): void {
