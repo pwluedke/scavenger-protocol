@@ -4,8 +4,7 @@ export const WRECK_HIT_RADIUS = 16;
 
 const DRIFTING_DURATION_MS = 4000;
 const FALLING_DURATION_MS = 4000;
-const FALLING_ACCELERATION = 40; // px/s²
-const HUSK_SPAWN_VY = 25; // 50% of Husk descent speed (50px/s)
+const HUSK_SPAWN_VY = 40; // 80% of Husk descent speed (50px/s) -- slight slowdown on death
 
 export interface Wreck {
   id: number;
@@ -51,18 +50,19 @@ export function updateWrecks(
     .map((w): Wreck => {
       if (w.phase === 'drifting') {
         const driftingAt = w.id === tetheredWreckId ? w.driftingAt + deltaMs : w.driftingAt;
+        const x = w.x + w.vx * dt;
+        const y = w.y + w.vy * dt;
         if (currentTimeMs - driftingAt >= DRIFTING_DURATION_MS) {
-          return { ...w, driftingAt, phase: 'falling' };
+          return { ...w, x, y, driftingAt, phase: 'falling' };
         }
-        return { ...w, driftingAt };
+        return { ...w, x, y, driftingAt };
       }
-      // falling phase
+      // falling phase -- constant velocity, scale shrinks to 0 over FALLING_DURATION_MS
       const fallingStartMs = w.driftingAt + DRIFTING_DURATION_MS;
       const fallingElapsedSec = (currentTimeMs - fallingStartMs) / 1000;
       const scale = Math.max(0, 1.0 - fallingElapsedSec / (FALLING_DURATION_MS / 1000));
-      const vy = w.vy + FALLING_ACCELERATION * dt;
       const y = w.y + w.vy * dt;
-      return { ...w, vy, y, scale, alive: scale > 0 };
+      return { ...w, y, scale, alive: scale > 0 };
     })
     .filter((w) => w.alive);
 }

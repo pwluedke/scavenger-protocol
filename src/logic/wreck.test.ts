@@ -17,6 +17,16 @@ describe('salvageTier', () => {
   });
 });
 
+describe('spawnWreck -- velocity inheritance', () => {
+  it('spawns with vy=40 (80% of Husk descent speed of 50 px/s)', () => {
+    expect(spawnWreck(1, 400, 300, 0).vy).toBe(40);
+  });
+
+  it('spawns with vx=0', () => {
+    expect(spawnWreck(1, 400, 300, 0).vx).toBe(0);
+  });
+});
+
 describe('updateWrecks -- drifting phase', () => {
   it('wreck stays drifting before 4000ms elapses', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
@@ -32,10 +42,17 @@ describe('updateWrecks -- drifting phase', () => {
     expect(result[0].phase).toBe('falling');
   });
 
-  it('wreck position is unchanged during drifting phase', () => {
+  it('wreck moves downward during drifting phase at its spawn vy', () => {
+    // spawnWreck sets vy=40 px/s; after 1000ms (dt=1s) y should increase by 40
     const wreck = spawnWreck(1, 400, 300, 0);
     const result = updateWrecks([wreck], 1000, 1000, null);
-    expect(result[0].y).toBe(300);
+    expect(result[0].y).toBeCloseTo(340, 1);
+  });
+
+  it('wreck moves 0.4px downward in a 10ms frame at vy=40', () => {
+    const wreck = spawnWreck(1, 400, 300, 0); // vy=40
+    const result = updateWrecks([wreck], 10, 10, null);
+    expect(result[0].y).toBeCloseTo(300.4, 3);
   });
 });
 
@@ -76,10 +93,10 @@ describe('updateWrecks -- falling phase', () => {
     expect(result[0].scale).toBeCloseTo(0.5, 2);
   });
 
-  it('vy accelerates at 40 px/s² during falling', () => {
-    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling', vy: 25 };
+  it('vy stays constant during falling (no acceleration)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
     const result = updateWrecks([wreck], 1000, 5000, null); // dt=1s
-    expect(result[0].vy).toBeCloseTo(65, 1); // 25 + 40*1
+    expect(result[0].vy).toBe(40);
   });
 
   it('falling wreck moves downward', () => {
