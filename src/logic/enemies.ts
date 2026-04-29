@@ -3,6 +3,9 @@
 export const DRIFTLING_HIT_RADIUS = 14;
 const DESCENT_SPEED = 80; // px/s
 
+export const HUSK_HIT_RADIUS = 24;
+const HUSK_DESCENT_SPEED = 50; // px/s
+
 export interface Driftling {
   id: number;
   x: number;
@@ -14,6 +17,23 @@ export interface Driftling {
   spawnedAtMs: number;
   hp: number;
   alive: boolean;
+}
+
+export interface Husk {
+  id: number;
+  x: number;
+  y: number;
+  hp: number;
+  alive: boolean;
+  spawnedAtMs: number;
+}
+
+export function updateHusks(husks: Husk[], deltaMs: number): Husk[] {
+  const dt = deltaMs / 1000;
+  return husks
+    .filter((h) => h.alive)
+    .map((h) => ({ ...h, y: h.y + HUSK_DESCENT_SPEED * dt }))
+    .filter((h) => h.y <= 740);
 }
 
 export function updateDriftlings(
