@@ -13,7 +13,7 @@ export const TARGETING_COOLDOWN_CANCEL_MS = 1500;
 export const TARGETING_COOLDOWN_TIMEOUT_MS = 3000;
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
-const RETICLE_LOCK_RADIUS = 30; // px: reticle must be within this distance to lock onto a settled wreck
+const RETICLE_LOCK_RADIUS = 30; // px: reticle must be within this distance to lock onto a drifting wreck
 
 export type ProbeStatus =
   | 'IDLE'
@@ -123,11 +123,11 @@ export function updateProbe(
     }
 
     case 'TARGETING': {
-      // Scan for nearest settled wreck within reticle lock radius
+      // Scan for nearest drifting wreck within reticle lock radius
       let candidateWreckId: number | null = null;
       let minDist2 = RETICLE_LOCK_RADIUS * RETICLE_LOCK_RADIUS;
       for (const w of wrecks) {
-        if (!w.alive || w.phase !== 'settled') continue;
+        if (!w.alive || w.phase !== 'drifting') continue;
         const dx = reticleX - w.x;
         const dy = reticleY - w.y;
         const dist2 = dx * dx + dy * dy;
@@ -187,7 +187,7 @@ export function updateProbe(
       if (distToTarget === 0 || moveDistance >= distToTarget) {
         if (probe.targetWreckId !== null) {
           const targetWreck = wrecks.find((w) => w.id === probe.targetWreckId) ?? null;
-          if (!targetWreck || targetWreck.phase !== 'settled') {
+          if (!targetWreck || targetWreck.phase !== 'drifting') {
             return { ...probe, x: probe.targetX, y: probe.targetY, status: 'DESTROYED', targetWreckId: null };
           }
           return { ...probe, x: probe.targetX, y: probe.targetY, status: 'TETHERED', tetheredSinceMs: timestamp };
@@ -200,7 +200,7 @@ export function updateProbe(
 
     case 'TETHERED': {
       const tetheredWreck = wrecks.find((w) => w.id === probe.targetWreckId) ?? null;
-      if (!tetheredWreck || tetheredWreck.phase !== 'settled') {
+      if (!tetheredWreck || tetheredWreck.phase !== 'drifting') {
         return { ...probe, status: 'DESTROYED', targetWreckId: null };
       }
       if (probeJustPressed) {

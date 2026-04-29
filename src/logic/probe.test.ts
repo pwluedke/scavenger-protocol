@@ -254,7 +254,7 @@ describe('probeTakeHit', () => {
 describe('TARGETING -- wreck candidate detection', () => {
   const targeting: ProbeState = { ...createProbe(), status: 'TARGETING', targetingStartMs: 0 };
 
-  it('sets candidateWreckId when settled wreck is within 30px of reticle', () => {
+  it('sets candidateWreckId when drifting wreck is within 30px of reticle', () => {
     const wreck = spawnWreck(42, 640, 200, 0); // reticle default is (640, 200)
     const after = step(targeting, { wrecks: [wreck] });
     expect(after.candidateWreckId).toBe(42);
@@ -313,7 +313,7 @@ describe('LAUNCHED -- wreck arrival', () => {
     };
   }
 
-  it('transitions to TETHERED on arrival when target wreck is still settled', () => {
+  it('transitions to TETHERED on arrival when target wreck is still drifting', () => {
     const wreck = spawnWreck(7, 648, 630, 0);
     const after = step(launchedAtWreck(7), { deltaMs: 16, timestamp: 100, wrecks: [wreck] });
     expect(after.status).toBe('TETHERED');
@@ -371,7 +371,7 @@ describe('TETHERED -- salvage and wreck-falls', () => {
     expect(after.status).toBe('DESTROYED');
   });
 
-  it('stays TETHERED when not pressing probe button and wreck is still settled', () => {
+  it('stays TETHERED when not pressing probe button and wreck is still drifting', () => {
     const wreck = spawnWreck(3, 400, 300, 0);
     const after = step(tethered(3, 0), { wrecks: [wreck] });
     expect(after.status).toBe('TETHERED');

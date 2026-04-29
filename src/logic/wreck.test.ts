@@ -17,12 +17,12 @@ describe('salvageTier', () => {
   });
 });
 
-describe('updateWrecks -- settled phase', () => {
-  it('wreck stays settled before 4000ms elapses', () => {
+describe('updateWrecks -- drifting phase', () => {
+  it('wreck stays drifting before 4000ms elapses', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
     const result = updateWrecks([wreck], 100, 3999, null);
     expect(result).toHaveLength(1);
-    expect(result[0].phase).toBe('settled');
+    expect(result[0].phase).toBe('drifting');
   });
 
   it('wreck transitions to falling at 4000ms', () => {
@@ -32,7 +32,7 @@ describe('updateWrecks -- settled phase', () => {
     expect(result[0].phase).toBe('falling');
   });
 
-  it('settled wreck does not move vertically', () => {
+  it('wreck position is unchanged during drifting phase', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
     const result = updateWrecks([wreck], 1000, 1000, null);
     expect(result[0].y).toBe(300);
@@ -40,28 +40,28 @@ describe('updateWrecks -- settled phase', () => {
 });
 
 describe('updateWrecks -- timer pause while tethered', () => {
-  it('tethering slides settledAt forward by deltaMs each frame', () => {
+  it('tethering slides driftingAt forward by deltaMs each frame', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
     const result = updateWrecks([wreck], 500, 500, 1);
-    expect(result[0].settledAt).toBe(500);
+    expect(result[0].driftingAt).toBe(500);
   });
 
-  it('un-tethered wreck does not slide settledAt', () => {
+  it('un-tethered wreck does not slide driftingAt', () => {
     const wreck = spawnWreck(1, 400, 300, 0);
     const result = updateWrecks([wreck], 500, 500, null);
-    expect(result[0].settledAt).toBe(0);
+    expect(result[0].driftingAt).toBe(0);
   });
 
-  it('tethered wreck stays settled past the un-tethered 4000ms deadline', () => {
-    // Tether for 2000ms: settledAt slides to ~2000, deadline becomes 6000ms
+  it('tethered wreck stays drifting past the un-tethered 4000ms deadline', () => {
+    // Tether for 2000ms: driftingAt slides to ~2000, deadline becomes 6000ms
     let wrecks = [spawnWreck(1, 400, 300, 0)];
     for (let t = 100; t <= 2000; t += 100) {
       wrecks = updateWrecks(wrecks, 100, t, 1);
     }
-    expect(wrecks[0].settledAt).toBeCloseTo(2000, 0);
-    // At t=4000 (still 2000ms before the new 6000ms deadline) -- still settled
+    expect(wrecks[0].driftingAt).toBeCloseTo(2000, 0);
+    // At t=4000 (still 2000ms before the new 6000ms deadline) -- still drifting
     const midResult = updateWrecks(wrecks, 100, 4000, null);
-    expect(midResult[0].phase).toBe('settled');
+    expect(midResult[0].phase).toBe('drifting');
     // At t=6000 -- transitions to falling
     const lateResult = updateWrecks(wrecks, 100, 6000, null);
     expect(lateResult[0].phase).toBe('falling');
@@ -70,7 +70,7 @@ describe('updateWrecks -- timer pause while tethered', () => {
 
 describe('updateWrecks -- falling phase', () => {
   it('scale at 2000ms into falling is 0.5', () => {
-    // settledAt=0, fallingStartMs=4000, currentTime=6000 -> elapsed=2s, scale=1-2/4=0.5
+    // driftingAt=0, fallingStartMs=4000, currentTime=6000 -> elapsed=2s, scale=1-2/4=0.5
     const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
     const result = updateWrecks([wreck], 16, 6000, null);
     expect(result[0].scale).toBeCloseTo(0.5, 2);
@@ -89,7 +89,7 @@ describe('updateWrecks -- falling phase', () => {
   });
 
   it('wreck is removed when scale reaches 0', () => {
-    // settledAt=0, fallingStartMs=4000, scale=0 at currentTime=8000
+    // driftingAt=0, fallingStartMs=4000, scale=0 at currentTime=8000
     const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'falling' };
     const result = updateWrecks([wreck], 100, 8100, null);
     expect(result).toHaveLength(0);
