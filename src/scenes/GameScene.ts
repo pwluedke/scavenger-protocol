@@ -253,6 +253,11 @@ export class GameScene extends Phaser.Scene {
     if (pHuskHits.length > 0) {
       this.playerState = damagePlayer(this.playerState, gameTimeMs, 2);
     }
+
+    if (this.playerState.hp <= 0) {
+      this.scene.start('GameOverScene');
+      return;
+    }
   }
 
   private drawScene(): void {

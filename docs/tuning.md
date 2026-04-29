@@ -38,6 +38,14 @@ Single forward shot. Maximum design space for progression to add multishot, spre
 | Vertical edges | Clamp. Hard stop at top and bottom of allowed Y range. No wrap, no bounce. |
 | Input source switching | Last input evt wins. Keyboard keydown OR gamepad button-press / stick-edge transitions. |
 
+### Death and game over
+
+| Condition | Outcome |
+|---|---|
+| Player HP reaches 0 | GameScene transitions to GameOverScene immediately; no partial-frame state updates after the check |
+| GameOverScene | Displays "PROTOCOL TERMINATED". Any keypress restarts from MenuScene. |
+| On restart | GameScene.create() resets gameTimeMs to 0; all spawn schedules and timers resume from t=0 of the new run. |
+
 ### Open questions
 
 1. **Tap-to-fire as alternative input mode.** Current behavior is hold-to-fire (space or RT held continuously, fire rate capped by 200ms throttle). A tap-each-shot mode for players who prefer twin-stick rhythm could be added as a settings toggle. Defer until post-MVP playtest provides signal on whether this is needed.
