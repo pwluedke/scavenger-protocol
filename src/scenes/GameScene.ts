@@ -75,6 +75,13 @@ export class GameScene extends Phaser.Scene {
     this.inputManager = createInputManager();
     this.events.once('shutdown', () => this.inputManager.dispose());
     this.gameTimeMs = 0;
+    this.inSlowMo = false;
+    this.scrollY = 0;
+    this.driftlings = [];
+    this.husks = [];
+    this.wrecks = [];
+    this.groundStains = [];
+    this.debrisFlashes = [];
     this.playerState = createPlayer();
     this.probeState = createProbe();
     this.reticleState = createReticle();
