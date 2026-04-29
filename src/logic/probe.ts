@@ -11,6 +11,7 @@ export const COOLDOWN_DESTROYED_MS = 8000;
 export const TARGETING_MAX_MS = 3000;
 export const TARGETING_COOLDOWN_CANCEL_MS = 1500;
 export const TARGETING_COOLDOWN_TIMEOUT_MS = 3000;
+export const TETHER_DURATION_CAP_MS = 6000;
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
 const RETICLE_LOCK_RADIUS = 30; // px: reticle must be within this distance to lock onto a drifting wreck
@@ -213,15 +214,14 @@ export function updateProbe(
       if (!tetheredWreck || tetheredWreck.phase !== 'drifting') {
         return { ...probe, status: 'DESTROYED', targetWreckId: null };
       }
-      if (probeJustPressed) {
-        const holdMs = timestamp - probe.tetheredSinceMs;
-        const tier = salvageTier(holdMs);
+      const holdMs = timestamp - probe.tetheredSinceMs;
+      if (holdMs >= TETHER_DURATION_CAP_MS || probeJustPressed) {
         return {
           ...probe,
           x: tetheredWreck.x,
           y: tetheredWreck.y,
           status: 'RETURNING',
-          rewardTier: tier,
+          rewardTier: salvageTier(holdMs),
           emptyReturn: false,
           targetWreckId: null,
         };

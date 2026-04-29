@@ -11,6 +11,7 @@ import {
   TARGETING_MAX_MS,
   TARGETING_COOLDOWN_CANCEL_MS,
   TARGETING_COOLDOWN_TIMEOUT_MS,
+  TETHER_DURATION_CAP_MS,
 } from './probe';
 import type { InputState } from '../systems/input';
 import { spawnWreck } from './wreck';
@@ -418,6 +419,20 @@ describe('TETHERED -- salvage and wreck-falls', () => {
     const after = step(tethered(3, 0), { wrecks: [movedWreck] });
     expect(after.x).toBe(400);
     expect(after.y).toBe(340);
+    expect(after.status).toBe('TETHERED');
+  });
+
+  it('auto-releases at TETHER_DURATION_CAP_MS with rewardTier 3', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { timestamp: TETHER_DURATION_CAP_MS, wrecks: [wreck] });
+    expect(after.status).toBe('RETURNING');
+    expect(after.rewardTier).toBe(3);
+    expect(after.targetWreckId).toBeNull();
+  });
+
+  it('stays tethered at one ms before cap without explicit release', () => {
+    const wreck = spawnWreck(3, 400, 300, 0);
+    const after = step(tethered(3, 0), { timestamp: TETHER_DURATION_CAP_MS - 1, wrecks: [wreck] });
     expect(after.status).toBe('TETHERED');
   });
 });

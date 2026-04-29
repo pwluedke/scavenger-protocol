@@ -56,7 +56,8 @@ All prototype values felt right after 20+ runs. Locked in.
 | Slow-mo factor | 0.2 | Game speed during TARGETING. |
 | Tier 1 max | 1500 ms | 0 to 1.5s tether duration: common pool. |
 | Tier 2 max | 3000 ms | 1.5 to 3s tether duration: uncommon pool. |
-| Tier 3 threshold | 3000 ms+ | Beyond 3s: rare pool. No upper cap. |
+| Tier 3 threshold | 3000 ms+ | Beyond 3s: rare pool. |
+| Tether duration cap | 6000 ms | Auto-releases at the cap with the earned tier (always Tier 3). No penalty. Behaves identically to manual release at that moment. |
 | Cooldown on successful return | 3000 ms | |
 | Cooldown on destruction | 8000 ms | ~2.6x penalty motivates probe preservation without being punitive. |
 | Probe HP | 3 | Three Husk-bullet hits while extended before destruction. |
