@@ -26,7 +26,7 @@ import { Wreck as WreckEntity } from '../entities/Wreck';
 
 const SLOWMO_FACTOR = 0.2;
 // TODO: vary by game state per tuning.md
-const SCROLL_SPEED = 60;
+const SCROLL_SPEED = 20;
 
 export class GameScene extends Phaser.Scene {
   private inputManager!: InputManager;
