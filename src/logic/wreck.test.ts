@@ -1,4 +1,4 @@
-import { spawnWreck, updateWrecks, salvageTier, Wreck } from './wreck';
+import { spawnWreck, updateWrecks, salvageTier, wreckScale, Wreck } from './wreck';
 
 describe('salvageTier', () => {
   it('returns 1 for hold < 1000ms', () => {
@@ -151,6 +151,44 @@ describe('updateWrecks -- velocity constant through all phases', () => {
     const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
     const { wrecks } = updateWrecks([wreck], 100, 6100, null);
     expect(wrecks[0].vy).toBe(40);
+  });
+});
+
+describe('wreckScale', () => {
+  it('returns 1.0 for drifting phase at any time', () => {
+    const wreck = spawnWreck(1, 400, 300, 0);
+    expect(wreckScale(wreck, 0)).toBeCloseTo(1.0);
+    expect(wreckScale(wreck, 3999)).toBeCloseTo(1.0);
+  });
+
+  it('returns 1.0 at the start of midFall (t=4000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    expect(wreckScale(wreck, 4000)).toBeCloseTo(1.0);
+  });
+
+  it('returns 0.85 at the midpoint of midFall (t=5000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    expect(wreckScale(wreck, 5000)).toBeCloseTo(0.85);
+  });
+
+  it('returns 0.7 at the end of midFall (t=6000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'midFall' };
+    expect(wreckScale(wreck, 6000)).toBeCloseTo(0.7);
+  });
+
+  it('returns 0.7 at the start of lateFall (t=6000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    expect(wreckScale(wreck, 6000)).toBeCloseTo(0.7);
+  });
+
+  it('returns 0.55 at the midpoint of lateFall (t=7000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    expect(wreckScale(wreck, 7000)).toBeCloseTo(0.55);
+  });
+
+  it('returns 0.4 at the end of lateFall (t=8000)', () => {
+    const wreck: Wreck = { ...spawnWreck(1, 400, 300, 0), phase: 'lateFall' };
+    expect(wreckScale(wreck, 8000)).toBeCloseTo(0.4);
   });
 });
 

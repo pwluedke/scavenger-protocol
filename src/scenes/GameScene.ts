@@ -157,6 +157,15 @@ export class GameScene extends Phaser.Scene {
       this.groundStains = addGroundStain(this.groundStains, pos.x, pos.y);
     }
 
+    // Scroll ground effects with the background so stains appear fixed on the terrain
+    const scrollDelta = this.currentScrollSpeed * (effectiveDeltaMs / 1000);
+    if (this.groundStains.length > 0) {
+      this.groundStains = this.groundStains.map((s) => ({ ...s, y: s.y + scrollDelta }));
+    }
+    if (this.debrisFlashes.length > 0) {
+      this.debrisFlashes = this.debrisFlashes.map((f) => ({ ...f, y: f.y + scrollDelta }));
+    }
+
     const probeJustPressed = inputFrame.justPressed.has(LogicalAction.PROBE);
     this.probeState = updateProbe(
       this.probeState,
@@ -268,7 +277,7 @@ export class GameScene extends Phaser.Scene {
 
     // Entity rendering -- depth values determine draw order, not call order
     this.groundEffectsEntity.update(this.groundStains, this.debrisFlashes, ts);
-    this.wreckEntity.update(this.wrecks, probe.candidateWreckId);
+    this.wreckEntity.update(this.wrecks, probe.candidateWreckId, ts);
     this.enemyEntity.update(this.driftlings, this.husks);
     this.bulletsEntity.update(this.playerState.bullets);
     this.probeEntity.update(probe, reticle, ts, this.playerState.x, this.playerState.y);

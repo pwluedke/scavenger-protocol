@@ -2,9 +2,9 @@
 
 export const WRECK_HIT_RADIUS = 16;
 
-const DRIFTING_DURATION_MS = 4000;
-const MID_FALL_DURATION_MS = 2000;
-const LATE_FALL_DURATION_MS = 2000;
+export const DRIFTING_DURATION_MS = 4000;
+export const MID_FALL_DURATION_MS = 2000;
+export const LATE_FALL_DURATION_MS = 2000;
 const HUSK_SPAWN_VY = 40; // 80% of Husk descent speed (50px/s) -- slight slowdown on death
 
 export interface Wreck {
@@ -35,6 +35,18 @@ export function salvageTier(holdMs: number): number {
   if (holdMs < 1000) return 1;
   if (holdMs < 2500) return 2;
   return 3;
+}
+
+export function wreckScale(wreck: Wreck, currentTimeMs: number): number {
+  if (wreck.phase === 'drifting') return 1.0;
+  const elapsed = currentTimeMs - wreck.driftingAt;
+  if (wreck.phase === 'midFall') {
+    const progress = Math.min(1, (elapsed - DRIFTING_DURATION_MS) / MID_FALL_DURATION_MS);
+    return 1.0 - 0.3 * progress; // 1.0 to 0.7
+  }
+  // lateFall
+  const progress = Math.min(1, (elapsed - DRIFTING_DURATION_MS - MID_FALL_DURATION_MS) / LATE_FALL_DURATION_MS);
+  return 0.7 - 0.3 * progress; // 0.7 to 0.4
 }
 
 export function updateWrecks(

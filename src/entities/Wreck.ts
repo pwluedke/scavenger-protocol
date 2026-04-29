@@ -1,9 +1,8 @@
 // Phaser render entity only. Reads from logic layer state.
 import Phaser from 'phaser';
 import type { Wreck as WreckLogic } from '../logic/wreck';
+import { wreckScale } from '../logic/wreck';
 import { LAYER_COMBAT, LAYER_MID_FALL, LAYER_LATE_FALL } from '../logic/layers';
-
-const PHASE_SCALE = { drifting: 1.0, midFall: 0.7, lateFall: 0.4 };
 
 export class Wreck {
   private combatGraphics: Phaser.GameObjects.Graphics;
@@ -16,13 +15,13 @@ export class Wreck {
     this.lateFallGraphics = scene.add.graphics().setDepth(LAYER_LATE_FALL);
   }
 
-  update(wrecks: WreckLogic[], candidateWreckId: number | null = null): void {
+  update(wrecks: WreckLogic[], candidateWreckId: number | null = null, currentTimeMs = 0): void {
     this.combatGraphics.clear();
     this.midFallGraphics.clear();
     this.lateFallGraphics.clear();
 
     for (const w of wrecks.filter((w) => w.alive)) {
-      const scale = PHASE_SCALE[w.phase];
+      const scale = wreckScale(w, currentTimeMs);
       const half = 16 * scale;
       const color = candidateWreckId === w.id ? 0xffffff : 0x808080;
 
