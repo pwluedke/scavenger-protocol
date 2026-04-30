@@ -336,6 +336,116 @@ Player ship implementation: movement with inertia, horizontal wrap with Loop Dri
 
 ---
 
+## Entry 06: Salvage loop ships, layer depth becomes foundation, latent gaps surface
+
+**Date range:** Two 4-hour sessions across consecutive evenings, late April 2026
+**Personas involved:** Paul (engineering lead, playtester), Vega (strategy), Gloom (implementation)
+**Artifacts produced:** Husks + wreck salvage system, layer system with ground stains and debris flashes, game clock architecture, GameOver wiring, per-run state reset, Driftling spawn variance tuning, background scroll tuning, Netlify Auto Publishing Lock workflow, /issue command preservation rules, six post-MVP parking lot entries
+
+### Context
+
+Entry 04 ended with the scaffold deployed at scavenger.somanygames.app and the player ship implementation queued. The arc between Entry 04 and this entry covered player ship, bullets, probe state machine, Driftlings, collision detection - that work belongs to the (still unwritten) Entry 05.
+
+This entry covers two consecutive evening sessions, eight hours of focused work, that shipped the wreck salvage system, promoted visual depth into a gameplay foundation, and surfaced three latent architectural gaps that had been hiding in plain sight.
+
+The one-line summary: the wreck salvage system shipped, the layer system promoted visual depth into gameplay foundation, and three latent architectural gaps surfaced and were closed in a single multi-PR session.
+
+### What was built
+
+Multiple PRs across the two evenings, in roughly this order:
+
+- **Husks + wrecks (#75/76):** Second enemy type, wreck objects with drifting/falling phases, real probe-tether salvage replacing the hardcoded rewardTier
+- **Wreck phase rename (#77):** "settled" became "drifting"
+- **Background scroll + wreck velocity fixes (#78/79):** Bug fixes surfaced by relative motion problems
+- **Layer system (#80/82):** Discrete depth planes for wrecks, debris flashes, persistent ground stains
+- **/issue command update (#81):** Preserve user-provided spec content rather than paraphrase
+- **Game clock architecture + GameOver wiring + restart fix (#83/84):** Slow-mo affects all time-based logic, HP=0 triggers GameOverScene, restart resets all run state
+- **Parking lot entries (#74):** Six post-MVP ideas captured before they faded
+
+### Decisions made
+
+**Layers as visual-only for MVP. Combat-aware layering deferred.**
+Three options were on the table: pure visual layers (Option A), probe layer-aware now and bullets later (B), or full layer-aware combat data model now (C). Paul chose A. Reasoning: the gameplay mechanics are still under construction; getting wrecks to fall through visual depth is enough to validate the visual concept, while leaving the data model simple. Layer-aware combat (bombs, ground enemies, lightning) is a coupled post-MVP feature that needs to be designed all at once when ground enemies arrive.
+
+**Phase rename from "settled" to "drifting."**
+"Settled" implied stationary or grounded. The wreck in this phase is airborne, drifting at 50% inherited velocity, fully salvageable. Paul flagged the name as actively confusing during testing. The rename was its own small refactor PR before the layer system work, so the layer system PR's diff stayed focused on layer mechanics.
+
+**Tether duration cap at 6 seconds, with auto-release.**
+Original locked design said no cap, add later if playtesting revealed exploit-holding. Playtest immediately revealed a different problem: holding the tether indefinitely pulled the probe off-screen and looked broken visually. The cap was added at 6 sec (well past the 3 sec Tier 3 threshold) with auto-release at the cap. The design rationale shifted from "cap to prevent exploit" to "cap to prevent visual breakdown."
+
+**GameOver wiring bundled into the game clock PR.**
+The game clock fix needed AC #5 verified: that gameTimeMs resets on run restart. Verifying that AC required actually dying and restarting. The death-to-GameOver path was missing entirely. Filing it as a separate issue would have blocked verification of the game clock fix on a separate PR cycle. Bundling was the right call because the work was small (3 lines) and required for the primary fix to be testable.
+
+**Constant wreck velocity through all phases.**
+The original design called for falling-phase acceleration (1.0x to 1.5x) to sell "the wreck is falling now." After the layer system added discrete scale changes per phase, the acceleration became visually distracting against the shrinking sprite. Removed in favor of constant 40 px/s through all three phases. The "it's falling away" sell now comes entirely from the layer transitions.
+
+### Options rejected
+
+**Cloudflare Pages migration.**
+Netlify auto-publish on every PR merge had burned through the free tier credits in a single day. Cloudflare Pages was the architecturally cleaner choice (free tier, clean auto-deploy disable). Paul instead upgraded to Netlify Personal: path of least resistance, no DNS migration, no rebuild of the deploy pipeline. The Cloudflare migration is filed as a parking-lot item to be revisited if Netlify causes further friction.
+
+**Layer-aware bullets and probe targeting now (Models B and C).**
+Building the full layer-aware combat data model upfront was tempting because it avoids future rework when ground enemies arrive. Rejected because no other weapons exist yet (bullets are the only projectile), so building the abstraction for one consumer is premature. The cost of doing it later when ground enemies require it is similar to doing it now. The simpler choice is correct until ground enemies force the issue.
+
+### Surprises
+
+**A test asserted the bug as expected behavior.**
+The wreck velocity bug fixed in #79 had a test alongside it: "wreck position is unchanged during drifting phase." This codified the bug as the spec. Paul flagged this as an unfamiliar gap: he doesn't have deep video game testing experience and didn't catch the implausible assertion in the test list during /plan review. The lesson is real and worth a CLAUDE.md addition: tests asserting "X does not change" deserve scrutiny because they often codify bugs.
+
+**Three "this should already exist" gaps surfaced in sequence.**
+Slow-mo not affecting Driftling sine oscillation. GameOver scene not wired to HP=0 transition. GameScene.create() not resetting all run state on restart. None of these were introduced by yesterday's work; all were preexisting but invisible until other systems started behaving correctly enough to expose them. The wreck velocity fix made wrecks move, which made it obvious that wrecks were the only thing slow-mo didn't slow. The visual layer system made deaths more dramatic, which made it obvious nothing happened on death. The layer system PR added enough state that incomplete reset became impossible to miss. Each gap was opened by progress on adjacent systems.
+
+**Background scroll speed problem only surfaced after wreck velocity fix.**
+Husks descended at 50 px/s. Background scrolled at 60 px/s. Husks appeared nearly stationary against the ground. Paul did not notice this until after #79 fixed the wreck velocity bug. With static wrecks, the relative-motion problem was invisible; with moving wrecks, the eye had a reference point and the Husk-vs-ground relationship became obviously wrong. Fixing one bug surfaced the next.
+
+### Process observations
+
+**Gloom abridged the layer system issue significantly during /issue draft.**
+The user-provided spec for the layer system included specific values (color codes, scale factors, phase durations) and complete state shapes. Gloom's draft replaced specifics with placeholders ("white/orange burst, TBD," "exact values tunable"), dropped the phase enum rename entirely from acceptance criteria, and reframed two of the five layer constants as "reserved for future use" when they were used in the same issue. Paul caught the drift on review and pushed back. The fix landed in #81: an updated /issue command that explicitly instructs Gloom to treat user content as authoritative spec, not a starting point for interpretation.
+
+**The "send to Vega first" pattern continued to compound value.**
+Every major plan flowed through Vega before going to Gloom. This caught architectural drift on the layer system /plan (probe target selection happens in TARGETING, not LAUNCHED), corrected the test file location for #69 (next-to-source per CLAUDE.md, not __tests__/), and caught the buggy pHits resolution loop in #69 before implementation. The overhead of one extra review pass per plan was small relative to the cost of catching architectural drift after implementation.
+
+**Honest scope correction: layer system PR became a multi-fix sweep.**
+Issue #80 began as "implement layer depths for wrecks." It shipped as: layer system + smooth scale interpolation + ground stain scrolling with background + probe live-position tracking + tether duration cap + debris flash visibility tuning. Each addition was justified, but the PR grew. The right call was to keep going within the same branch since each fix was small and surfaced by testing the previous one. The wrong call would have been seven separate PRs for what was effectively one continuous test-and-tune session.
+
+### What got deferred
+
+Six post-MVP ideas captured to docs/ideas.md during the session:
+
+- **Probe sees what the ship can't:** TARGETING reveals weak points, salvage previews, hidden artifacts in a cone around the reticle
+- **Crew log via Anthropic API:** First-person fragmented log entries generated from compact run state, fired during combat lulls
+- **Wrecks remember what killed them:** Salvage tier rolls weighted by how the enemy died (direct fire, collision, tether)
+- **Ship visually accumulates alien tech:** Each picked node bolts visible hardware onto the ship; tier 4 picks especially
+- **Partial death:** "Death" tears off the most recent node instead of ending the run; three deaths in a row strips ship to base, fourth death is real
+- **Behemoth boss built from unsalvaged wrecks:** Final boss size and difficulty scale with wrecks the player let pass during the run
+
+Plus four infrastructure parking items:
+
+- Cloudflare Pages migration
+- Tap-to-fire override for faster manual fire than the hold cadence
+- Per-run spawn seed (currently identical Husk patterns every run, breaking replay variance)
+- Smooth scale tweening for wreck phase transitions if the discrete jumps prove jarring in playtest
+
+### Verdict
+
+MVP-shipping foundation complete. Salvage loop functional end-to-end. Layer depth implemented. Run lifecycle works (death triggers GameOver, restart resets all state cleanly). Slow-mo affects all time-based logic. Game is now playable end-to-end with placeholder content. Ready for the content layers: progression offer screen, node effects, real HUD.
+
+### Open at end of entry
+
+1. Progression offer screen needs to be the next gameplay issue (Vampire Survivors-style 1-of-3 picker after probe-tether returns)
+2. Node effects: what each picked node actually does mechanically, gating tier 4 visuals if pursued
+3. Real HUD replacing the placeholder "HP:3" text
+4. Per-run spawn seed: identical Husk patterns every run is a replayability problem and should be promoted from parking lot to active work whenever it starts to nag
+5. Build journal Entry 05 (player ship through Husks + wrecks, the gap between scaffold deploy and this session) is unwritten; archaeological work that can be drafted from PR descriptions when convenient
+6. Netlify Auto Publishing Lock workflow is in place but adds two manual clicks per intentional deploy; Cloudflare migration remains the long-term escape hatch
+
+### Next step
+
+Build journal Entry 05 (the gap between scaffold and yesterday's work) followed by the progression offer screen as the next development issue.
+
+---
+
 
 Entry template (copy for future entries)
 ## Entry NN: [short title]
