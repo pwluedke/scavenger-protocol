@@ -18,8 +18,9 @@ import type { Wreck } from '../logic/wreck';
 import { updateDebrisFlashes, addGroundStain } from '../logic/groundEffects';
 import type { DebrisFlash, GroundStain } from '../logic/groundEffects';
 import { LAYER_BACKGROUND } from '../logic/layers';
-import { createRunState, RunState } from '../logic/run';
+import { createRunState, RunState, incrementSalvage, applyPickedNode } from '../logic/run';
 import { createRng, Rng } from '../logic/rng';
+import { getValidOffers } from '../logic/offerFilter';
 import { ASSETS } from '../config/assets';
 import { Player } from '../entities/Player';
 import { Bullets } from '../entities/Bullets';
@@ -54,6 +55,8 @@ export class GameScene extends Phaser.Scene {
   private groundEffectsEntity!: GroundEffects;
   private spawnerState!: SpawnerState;
   private spawnerRng!: Rng;
+  private offerRng!: Rng;
+  private lastSalvageTier = 1;
   private runState!: RunState;
   private graphics!: Phaser.GameObjects.Graphics;
   private flashText!: Phaser.GameObjects.Text;
@@ -99,6 +102,8 @@ export class GameScene extends Phaser.Scene {
 
     this.spawnerState = createSpawner();
     this.spawnerRng = createRng('run-seed-spawner');
+    this.offerRng = createRng('run-seed-offer');
+    this.lastSalvageTier = 1;
 
     // Draw order (back to front): ground effects, wrecks, enemies, bullets, probe, player, HUD
     this.groundEffectsEntity = new GroundEffects(this);
@@ -126,6 +131,9 @@ export class GameScene extends Phaser.Scene {
     this.salvageText = this.add
       .text(20, 700, 'SALVAGE: 0', { fontSize: '14px', fontFamily: 'monospace', color: '#00ffaa' })
       .setOrigin(0, 1);
+
+    this.events.on('offerResult', this.handleOfferResult, this);
+    this.events.once('shutdown', () => this.events.off('offerResult', this.handleOfferResult, this));
   }
 
   update(_time: number, delta: number): void {
@@ -197,7 +205,20 @@ export class GameScene extends Phaser.Scene {
 
     // Salvage credit: probe completed a wreck tether return
     if (prevProbeStatus === 'RETURNING' && this.probeState.status === 'COOLDOWN' && !this.probeState.emptyReturn) {
-      this.runState = { ...this.runState, salvageCount: this.runState.salvageCount + this.probeState.rewardTier };
+      const tier = this.probeState.rewardTier;
+      this.lastSalvageTier = tier;
+      const { state: newRunState, offerTriggered } = incrementSalvage(this.runState, tier);
+      this.runState = newRunState;
+      if (offerTriggered) {
+        const offers = getValidOffers(this.runState.pickedNodes, this.lastSalvageTier, this.offerRng);
+        if (offers.length > 0) {
+          this.scene.pause();
+          this.scene.launch('OfferScene', { offers, salvageTier: this.lastSalvageTier });
+        } else {
+          // Tree exhausted -- silence all future offer triggers for this run
+          this.runState = { ...this.runState, nextOfferThreshold: Infinity };
+        }
+      }
     }
 
     const { state: newSpawner, spawned, spawnedHusks } = updateSpawner(this.spawnerState, this.spawnerRng, gameTimeMs);
@@ -330,6 +351,12 @@ export class GameScene extends Phaser.Scene {
       this.flashText.setVisible(true);
     } else {
       this.flashText.setVisible(false);
+    }
+  }
+
+  private handleOfferResult(pickedNodeId: string | null): void {
+    if (pickedNodeId !== null) {
+      this.runState = applyPickedNode(this.runState, pickedNodeId);
     }
   }
 }
