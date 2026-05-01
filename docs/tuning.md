@@ -129,6 +129,37 @@ All prototype values felt right after 20+ runs. Locked in.
 - Fallback if fewer than 3 eligible nodes in target pool: fall back to next rarity down until 3 offers can be assembled
 - End state: player has taken every node in the rare pool. No more offers fire silently on probe return.
 
+### Offer screen trigger -- salvage points
+
+Offers do not fire on every probe return. They fire when a cumulative salvage point threshold is crossed.
+
+| Probe return tier | Points awarded |
+|---|---|
+| Tier 1 (0-1.5s) | 1 point |
+| Tier 2 (1.5-3s) | 3 points |
+| Tier 3 (3s+)    | 6 points |
+
+| Offer number | Cumulative point threshold |
+|---|---|
+| Offer 1 | 3 |
+| Offer 2 | 8 |
+| Offer 3 | 16 |
+| Offer 4 | 28 |
+| Offer 5 | 44 |
+| Offer 6 | 64 |
+
+After the 6th offer, no further offers fire for the rest of the run (20 nodes with 6 offers of 1 pick each leaves most of the tree unpicked; extending thresholds or adding more offers is a post-MVP tuning lever).
+
+The offer screen pauses GameScene. `gameTimeMs` does not advance while the offer is open. Enemies, probe cooldowns, and timers are frozen. Resume is instant when the player picks.
+
+### Offer filtering rules
+
+1. Target pool is determined by the salvage tier of the probe return that triggered the offer.
+2. Deep Salvage upgrade: if the player has taken the Deep Salvage node, Tier 1 returns draw from uncommon and Tier 2 returns draw from rare.
+3. A node is eligible if: (a) its pool matches the target pool, (b) it has not already been picked this run, and (c) its parent node has already been picked (or it is a tier-1 root node with no parent).
+4. If fewer than 3 eligible nodes exist in the target pool, fall back to the next lower pool to fill remaining slots.
+5. Offer order within a pool is shuffled using the seeded offer RNG.
+
 ### Rarity pool assignments
 
 | Pool | Nodes |
