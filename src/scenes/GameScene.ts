@@ -214,6 +214,9 @@ export class GameScene extends Phaser.Scene {
         if (offers.length > 0) {
           this.scene.pause();
           this.scene.launch('OfferScene', { offers, salvageTier: this.lastSalvageTier });
+        } else {
+          // Tree exhausted -- silence all future offer triggers for this run
+          this.runState = { ...this.runState, nextOfferThreshold: Infinity };
         }
       }
     }

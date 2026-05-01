@@ -4,12 +4,12 @@ import type { NodeDefinition } from '../logic/progression-data';
 // Depth values: sit above all combat layer (400) and HUD graphics
 const DEPTH_OVERLAY = 900;
 const DEPTH_CARDS   = 1000;
-const DEPTH_TEXT    = 1001;
+const DEPTH_TEXT    = 1002;
 
 const CARD_WIDTH  = 260;
-const CARD_HEIGHT = 180;
+const CARD_HEIGHT = 260;
 const CARD_GAP    = 40;
-const CARD_Y      = 360;
+const CARD_Y      = 370;
 
 const CARD_COLOR_DEFAULT  = 0x1a2a3a;
 const CARD_COLOR_SELECTED = 0x2a4a6a;
@@ -26,12 +26,11 @@ export class OfferScene extends Phaser.Scene {
   private selectedIndex = 0;
   private cards: Phaser.GameObjects.Rectangle[] = [];
   private borders: Phaser.GameObjects.Rectangle[] = [];
-  private nameTexts: Phaser.GameObjects.Text[] = [];
-  private hintText!: Phaser.GameObjects.Text;
   private leftKey!: Phaser.Input.Keyboard.Key;
   private rightKey!: Phaser.Input.Keyboard.Key;
   private confirmKey!: Phaser.Input.Keyboard.Key;
-  private altConfirmKey!: Phaser.Input.Keyboard.Key;
+  private skipKey!: Phaser.Input.Keyboard.Key;
+  private escKey!: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super({ key: 'OfferScene' });
@@ -54,47 +53,67 @@ export class OfferScene extends Phaser.Scene {
 
     // Title
     this.add
-      .text(640, 140, 'SALVAGE OFFER', { fontSize: '28px', fontFamily: 'monospace', color: '#00ccff' })
+      .text(640, 100, 'SALVAGE COMPLETE', { fontSize: '28px', fontFamily: 'monospace', color: '#00ccff' })
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT);
 
     this.add
-      .text(640, 180, 'Choose one upgrade for this run', { fontSize: '14px', fontFamily: 'monospace', color: '#888888' })
+      .text(640, 138, 'Choose one upgrade for this run', { fontSize: '13px', fontFamily: 'monospace', color: '#888888' })
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT);
 
     // Cards
     const totalWidth = this.offers.length * CARD_WIDTH + (this.offers.length - 1) * CARD_GAP;
     const startX = 640 - totalWidth / 2 + CARD_WIDTH / 2;
+    const cardTop = CARD_Y - CARD_HEIGHT / 2;
 
     this.cards = [];
     this.borders = [];
-    this.nameTexts = [];
 
     for (let i = 0; i < this.offers.length; i++) {
       const x = startX + i * (CARD_WIDTH + CARD_GAP);
       const node = this.offers[i];
 
-      const border = this.add.rectangle(x, CARD_Y, CARD_WIDTH + 4, CARD_HEIGHT + 4, CARD_BORDER_DEFAULT).setDepth(DEPTH_CARDS);
-      const card = this.add.rectangle(x, CARD_Y, CARD_WIDTH, CARD_HEIGHT, CARD_COLOR_DEFAULT).setDepth(DEPTH_CARDS + 1);
+      const border = this.add
+        .rectangle(x, CARD_Y, CARD_WIDTH + 4, CARD_HEIGHT + 4, CARD_BORDER_DEFAULT)
+        .setDepth(DEPTH_CARDS);
+      const card = this.add
+        .rectangle(x, CARD_Y, CARD_WIDTH, CARD_HEIGHT, CARD_COLOR_DEFAULT)
+        .setDepth(DEPTH_CARDS + 1);
 
-      const poolLabel = node.pool.toUpperCase();
+      // Position number -- top-left corner of card
       this.add
-        .text(x, CARD_Y - CARD_HEIGHT / 2 + 20, poolLabel, {
-          fontSize: '11px',
+        .text(x - CARD_WIDTH / 2 + 10, cardTop + 10, `${i + 1}`, {
+          fontSize: '13px',
+          fontFamily: 'monospace',
+          color: '#555555',
+        })
+        .setOrigin(0, 0)
+        .setDepth(DEPTH_TEXT);
+
+      // Pool label -- top-right corner of card
+      this.add
+        .text(x + CARD_WIDTH / 2 - 10, cardTop + 10, node.pool.toUpperCase(), {
+          fontSize: '10px',
           fontFamily: 'monospace',
           color: this.poolColor(node.pool),
+        })
+        .setOrigin(1, 0)
+        .setDepth(DEPTH_TEXT);
+
+      // Branch label
+      this.add
+        .text(x, cardTop + 42, node.branch.toUpperCase(), {
+          fontSize: '11px',
+          fontFamily: 'monospace',
+          color: '#888888',
         })
         .setOrigin(0.5)
         .setDepth(DEPTH_TEXT);
 
-      const nameText = this.add
-        .text(x, CARD_Y - 10, node.name, { fontSize: '18px', fontFamily: 'monospace', color: '#ffffff' })
-        .setOrigin(0.5)
-        .setDepth(DEPTH_TEXT);
-
+      // Tier indicator
       this.add
-        .text(x, CARD_Y + 40, node.branch.toUpperCase(), {
+        .text(x, cardTop + 60, `TIER ${node.tier}`, {
           fontSize: '11px',
           fontFamily: 'monospace',
           color: '#666666',
@@ -102,24 +121,46 @@ export class OfferScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(DEPTH_TEXT);
 
+      // Node name
+      this.add
+        .text(x, cardTop + 93, node.name, {
+          fontSize: '18px',
+          fontFamily: 'monospace',
+          color: '#ffffff',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_TEXT);
+
+      // Description (wordwrap, top-aligned so multiple lines extend downward)
+      this.add
+        .text(x, cardTop + 122, node.description, {
+          fontSize: '11px',
+          fontFamily: 'monospace',
+          color: '#aaaaaa',
+          wordWrap: { width: CARD_WIDTH - 24 },
+          align: 'center',
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(DEPTH_TEXT);
+
       this.cards.push(card);
       this.borders.push(border);
-      this.nameTexts.push(nameText);
     }
 
-    this.hintText = this.add
-      .text(640, 560, '[LEFT] / [RIGHT] to navigate   [SPACE] to confirm', {
+    this.add
+      .text(640, 570, '[LEFT] / [RIGHT] navigate   [ENTER] pick   [SPACE] skip', {
         fontSize: '12px',
         fontFamily: 'monospace',
-        color: '#666666',
+        color: '#555555',
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_TEXT);
 
     this.leftKey    = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
     this.rightKey   = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
-    this.confirmKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.altConfirmKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.confirmKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    this.skipKey    = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
     this.refreshCards();
   }
@@ -133,8 +174,11 @@ export class OfferScene extends Phaser.Scene {
       this.selectedIndex = (this.selectedIndex + 1) % this.offers.length;
       this.refreshCards();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.confirmKey) || Phaser.Input.Keyboard.JustDown(this.altConfirmKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.confirmKey)) {
       this.closeWithResult(this.offers[this.selectedIndex].id);
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.skipKey) || Phaser.Input.Keyboard.JustDown(this.escKey)) {
+      this.closeWithResult(null);
     }
   }
 

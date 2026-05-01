@@ -28,6 +28,9 @@ export interface IncrementResult {
   salvageTierForOffer: number;
 }
 
+// Updates salvageCount and salvagePoints. Returns offerTriggered if the
+// threshold has been crossed, but does NOT advance nextOfferThreshold --
+// that happens in applyPickedNode so skip can leave the threshold unchanged.
 export function incrementSalvage(state: RunState, tier: number): IncrementResult {
   const newSalvageCount = state.salvageCount + tier;
   const points = SALVAGE_TIER_VALUES[tier] ?? 1;
@@ -35,23 +38,26 @@ export function incrementSalvage(state: RunState, tier: number): IncrementResult
 
   const offerTriggered = state.nextOfferThreshold !== Infinity && newSalvagePoints >= state.nextOfferThreshold;
 
-  const nextThresholdIndex = OFFER_THRESHOLDS.indexOf(state.nextOfferThreshold);
-  const nextOfferThreshold = offerTriggered
-    ? (OFFER_THRESHOLDS[nextThresholdIndex + 1] ?? Infinity)
-    : state.nextOfferThreshold;
-
   return {
     state: {
       ...state,
       salvageCount: newSalvageCount,
       salvagePoints: newSalvagePoints,
-      nextOfferThreshold,
     },
     offerTriggered,
     salvageTierForOffer: tier,
   };
 }
 
+export function checkOfferTrigger(state: RunState): boolean {
+  return state.nextOfferThreshold !== Infinity && state.salvagePoints >= state.nextOfferThreshold;
+}
+
+// Adds the picked node and advances nextOfferThreshold to the next value.
+// Called on confirm pick; on skip, call nothing so threshold stays and re-triggers.
 export function applyPickedNode(state: RunState, nodeId: string): RunState {
-  return { ...state, pickedNodes: [...state.pickedNodes, nodeId] };
+  const thresholdIndex = OFFER_THRESHOLDS.indexOf(state.nextOfferThreshold);
+  const nextOfferThreshold =
+    thresholdIndex >= 0 ? (OFFER_THRESHOLDS[thresholdIndex + 1] ?? Infinity) : state.nextOfferThreshold;
+  return { ...state, pickedNodes: [...state.pickedNodes, nodeId], nextOfferThreshold };
 }

@@ -95,6 +95,27 @@ describe('getValidOffers -- fallback', () => {
   });
 });
 
+describe('getValidOffers -- specified AC scenarios', () => {
+  it('T3 salvage with only 2 T1 nodes picked falls back to eligible T2 nodes', () => {
+    // pellet-drive and plating are picked. T3 salvage targets rare pool.
+    // No rare nodes are eligible (none of their T2/T3 parents are picked).
+    // Falls back to uncommon: twin-shot (needs pellet-drive) and hull-memory (needs plating) are eligible.
+    const picked = ['pellet-drive', 'plating'];
+    const offers = getValidOffers(picked, 3, rng());
+    const ids = offers.map((o) => o.id);
+    expect(ids).toContain('twin-shot');
+    expect(ids).toContain('hull-memory');
+  });
+
+  it('fully-picked branch does not appear in any offer', () => {
+    // Pick all 4 offense nodes. No offense nodes should appear in subsequent offers.
+    const offensePicked = ['pellet-drive', 'twin-shot', 'piercing-rounds', 'salvo'];
+    const offers = getValidOffers(offensePicked, 3, rng());
+    const hasOffense = offers.some((o) => o.branch === 'offense');
+    expect(hasOffense).toBe(false);
+  });
+});
+
 describe('getValidOffers -- Deep Salvage upgrade', () => {
   it('upgrades tier-1 salvage to uncommon pool when deep-salvage is picked', () => {
     // Need the parent chain for deep-salvage to have uncommon nodes available

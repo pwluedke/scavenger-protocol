@@ -1,4 +1,11 @@
-import { createRunState, incrementSalvage, applyPickedNode, OFFER_THRESHOLDS, SALVAGE_TIER_VALUES } from './run';
+import {
+  createRunState,
+  incrementSalvage,
+  checkOfferTrigger,
+  applyPickedNode,
+  OFFER_THRESHOLDS,
+  SALVAGE_TIER_VALUES,
+} from './run';
 
 describe('createRunState', () => {
   it('initializes with zeroed counters and first threshold', () => {
@@ -37,9 +44,9 @@ describe('incrementSalvage -- point accumulation', () => {
 
   it('accumulates across multiple returns', () => {
     let s = createRunState();
-    ({ state: s } = incrementSalvage(s, 1)).state;
-    ({ state: s } = incrementSalvage(s, 1)).state;
-    ({ state: s } = incrementSalvage(s, 1)).state;
+    ({ state: s } = incrementSalvage(s, 1));
+    ({ state: s } = incrementSalvage(s, 1));
+    ({ state: s } = incrementSalvage(s, 1));
     expect(s.salvagePoints).toBe(3);
     expect(s.salvageCount).toBe(3);
   });
@@ -47,58 +54,62 @@ describe('incrementSalvage -- point accumulation', () => {
 
 describe('incrementSalvage -- offer trigger', () => {
   it('does not trigger offer below first threshold', () => {
-    const s = createRunState(); // threshold = 3
-    // 2 tier-1 returns = 2 points
-    let state = s;
+    let state = createRunState();
     ({ state } = incrementSalvage(state, 1));
-    const { offerTriggered } = incrementSalvage(state, 1);
+    const { offerTriggered } = incrementSalvage(state, 1); // 2 points, threshold=3
     expect(offerTriggered).toBe(false);
   });
 
   it('triggers offer when points reach first threshold', () => {
-    const s = createRunState(); // threshold = 3
-    let state = s;
+    let state = createRunState();
     ({ state } = incrementSalvage(state, 1));
     ({ state } = incrementSalvage(state, 1));
-    const { offerTriggered } = incrementSalvage(state, 1); // 3 points total
+    const { offerTriggered } = incrementSalvage(state, 1); // 3 points
     expect(offerTriggered).toBe(true);
   });
 
   it('triggers offer when points exceed threshold in a single return', () => {
     const s = createRunState(); // threshold = 3
-    // single tier-3 return = 6 points, crosses threshold of 3
-    const { offerTriggered } = incrementSalvage(s, 3);
+    const { offerTriggered } = incrementSalvage(s, 3); // 6 points
     expect(offerTriggered).toBe(true);
   });
 
-  it('advances nextOfferThreshold to the next value after trigger', () => {
-    const s = createRunState(); // threshold = 3
-    let state = s;
+  it('does not advance nextOfferThreshold on trigger', () => {
+    let state = createRunState(); // threshold = OFFER_THRESHOLDS[0]
     ({ state } = incrementSalvage(state, 1));
     ({ state } = incrementSalvage(state, 1));
-    ({ state } = incrementSalvage(state, 1)); // triggers at 3
-    expect(state.nextOfferThreshold).toBe(OFFER_THRESHOLDS[1]); // 8
+    ({ state } = incrementSalvage(state, 1)); // offerTriggered, but threshold must NOT advance
+    expect(state.nextOfferThreshold).toBe(OFFER_THRESHOLDS[0]); // still 3
   });
 
-  it('sets nextOfferThreshold to Infinity after last threshold is passed', () => {
-    let state = createRunState();
-    // Blast through all thresholds with tier-3 returns (6 pts each)
-    // Thresholds: 3, 8, 16, 28, 44, 64
-    // 11 tier-3 returns = 66 points -- passes all 6 thresholds (triggers on each step through)
-    for (let i = 0; i < 15; i++) {
-      ({ state } = incrementSalvage(state, 3));
-    }
-    expect(state.nextOfferThreshold).toBe(Infinity);
-  });
-
-  it('does not trigger after all thresholds are exhausted', () => {
-    let state = createRunState();
-    for (let i = 0; i < 15; i++) {
-      ({ state } = incrementSalvage(state, 3));
-    }
-    // now nextOfferThreshold = Infinity
+  it('does not trigger when threshold is Infinity', () => {
+    const state = { ...createRunState(), nextOfferThreshold: Infinity, salvagePoints: 9999 };
     const { offerTriggered } = incrementSalvage(state, 3);
     expect(offerTriggered).toBe(false);
+  });
+});
+
+describe('checkOfferTrigger', () => {
+  it('returns false when salvagePoints is below threshold', () => {
+    const s = createRunState(); // points=0, threshold=3
+    expect(checkOfferTrigger(s)).toBe(false);
+  });
+
+  it('returns true when salvagePoints meets threshold', () => {
+    let state = createRunState();
+    ({ state } = incrementSalvage(state, 3)); // 6 points >= threshold of 3
+    expect(checkOfferTrigger(state)).toBe(true);
+  });
+
+  it('returns true when salvagePoints exceeds threshold', () => {
+    let state = createRunState();
+    for (let i = 0; i < 5; i++) ({ state } = incrementSalvage(state, 1)); // 5 points >= 3
+    expect(checkOfferTrigger(state)).toBe(true);
+  });
+
+  it('returns false when threshold is Infinity', () => {
+    const s = { ...createRunState(), nextOfferThreshold: Infinity, salvagePoints: 9999 };
+    expect(checkOfferTrigger(s)).toBe(false);
   });
 });
 
@@ -120,5 +131,24 @@ describe('applyPickedNode', () => {
     const s = createRunState();
     applyPickedNode(s, 'pellet-drive');
     expect(s.pickedNodes).toHaveLength(0);
+  });
+
+  it('advances nextOfferThreshold to the next value', () => {
+    const s = createRunState(); // threshold = OFFER_THRESHOLDS[0] = 3
+    const updated = applyPickedNode(s, 'pellet-drive');
+    expect(updated.nextOfferThreshold).toBe(OFFER_THRESHOLDS[1]); // 8
+  });
+
+  it('sets nextOfferThreshold to Infinity after last threshold', () => {
+    const lastThreshold = OFFER_THRESHOLDS[OFFER_THRESHOLDS.length - 1];
+    const s = { ...createRunState(), nextOfferThreshold: lastThreshold };
+    const updated = applyPickedNode(s, 'pellet-drive');
+    expect(updated.nextOfferThreshold).toBe(Infinity);
+  });
+
+  it('does not change nextOfferThreshold when already Infinity', () => {
+    const s = { ...createRunState(), nextOfferThreshold: Infinity };
+    const updated = applyPickedNode(s, 'pellet-drive');
+    expect(updated.nextOfferThreshold).toBe(Infinity);
   });
 });
