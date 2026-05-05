@@ -70,19 +70,20 @@ describe('spawner -- schedule timing', () => {
     expect(result.spawned).toHaveLength(1);
   });
 
-  it('produces no spawns at or after 45000ms', () => {
-    const rng = createRng('stop-seed');
+  it('continues spawning past 45000ms', () => {
+    const rng = createRng('continue-seed');
     let state = createSpawner();
-    // Advance to just before stop
-    for (let t = 0; t < 45000; t += 100) {
+    for (let t = 0; t <= 45000; t += 100) {
       const r = updateSpawner(state, rng, t);
       state = r.state;
     }
-    // At and beyond 45000ms, nothing spawns
-    for (let t = 45000; t <= 50000; t += 100) {
+    const spawned: ReturnType<typeof updateSpawner>['spawned'] = [];
+    for (let t = 45100; t <= 50000; t += 100) {
       const result = updateSpawner(state, rng, t);
-      expect(result.spawned).toHaveLength(0);
+      state = result.state;
+      spawned.push(...result.spawned);
     }
+    expect(spawned.length).toBeGreaterThan(0);
   });
 });
 
@@ -180,20 +181,24 @@ describe('spawner -- husk schedule', () => {
   it('husks spawn every 4000ms after first spawn', () => {
     const { allHusks } = advanceToTime(createSpawner(), 45000);
     // From 20000ms to 44000ms in 4000ms steps: 7 husks (20k, 24k, 28k, 32k, 36k, 40k, 44k)
+    // nextHuskSpawnAtMs=48000 after 7th, so t=45000 does not trigger another
     expect(allHusks).toHaveLength(7);
   });
 
-  it('produces no husks at or after 45000ms', () => {
-    const rng = createRng('husk-stop-seed');
+  it('continues spawning husks past 45000ms', () => {
+    const rng = createRng('husk-continue-seed');
     let state = createSpawner();
-    for (let t = 0; t < 45000; t += 100) {
+    for (let t = 0; t <= 45000; t += 100) {
       const r = updateSpawner(state, rng, t);
       state = r.state;
     }
-    for (let t = 45000; t <= 50000; t += 100) {
+    const husks: Husk[] = [];
+    for (let t = 45100; t <= 56000; t += 100) {
       const result = updateSpawner(state, rng, t);
-      expect(result.spawnedHusks).toHaveLength(0);
+      state = result.state;
+      husks.push(...result.spawnedHusks);
     }
+    expect(husks.length).toBeGreaterThan(0);
   });
 
   it('all husks spawn with x within [100, 1180]', () => {

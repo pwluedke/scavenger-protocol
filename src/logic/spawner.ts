@@ -4,14 +4,12 @@ import type { Driftling } from './enemies';
 import type { Husk } from './enemies';
 
 const SPAWN_DELAY_MS = 5000;
-const SPAWN_STOP_MS = 45000;
 const INTERVAL_EARLY_MS = 1500; // 5s to 25s
-const INTERVAL_LATE_MS = 800;   // 25s to 45s
+const INTERVAL_LATE_MS = 800;   // 25s+
 const LATE_PHASE_MS = 25000;
 
 const HUSK_SPAWN_INTERVAL_MS = 4000;
 const HUSK_SPAWN_START_MS = 20000;
-const HUSK_SPAWN_STOP_MS = 45000;
 const HUSK_HP = 4;
 
 const SPAWN_X_MIN = 100;
@@ -43,7 +41,7 @@ export function updateSpawner(
   const spawned: Driftling[] = [];
   const spawnedHusks: Husk[] = [];
 
-  if (currentTimeMs >= newState.nextSpawnAtMs && currentTimeMs < SPAWN_STOP_MS) {
+  if (currentTimeMs >= newState.nextSpawnAtMs) {
     const spawnX = rng.nextInt(SPAWN_X_MIN, SPAWN_X_MAX);
     const maxLeft = spawnX - AMPLITUDE_EDGE_MARGIN;
     const maxRight = AMPLITUDE_CANVAS_EDGE - spawnX;
@@ -69,7 +67,7 @@ export function updateSpawner(
     newState = { ...newState, nextSpawnAtMs: newState.nextSpawnAtMs + interval, nextId: newState.nextId + 1 };
   }
 
-  if (currentTimeMs >= newState.nextHuskSpawnAtMs && currentTimeMs < HUSK_SPAWN_STOP_MS) {
+  if (currentTimeMs >= newState.nextHuskSpawnAtMs) {
     const huskX = rng.nextInt(SPAWN_X_MIN, SPAWN_X_MAX);
     const husk: Husk = {
       id: newState.nextId,

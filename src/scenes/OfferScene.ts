@@ -16,6 +16,8 @@ const CARD_COLOR_SELECTED = 0x2a4a6a;
 const CARD_BORDER_DEFAULT  = 0x336699;
 const CARD_BORDER_SELECTED = 0x00ccff;
 
+const STICK_DEADZONE = 0.15;
+
 export interface OfferSceneData {
   offers: NodeDefinition[];
   salvageTier: number;
@@ -31,6 +33,12 @@ export class OfferScene extends Phaser.Scene {
   private confirmKey!: Phaser.Input.Keyboard.Key;
   private skipKey!: Phaser.Input.Keyboard.Key;
   private escKey!: Phaser.Input.Keyboard.Key;
+  // Gamepad state for edge detection (GameScene is paused so InputManager is not running)
+  private gpPrevStickX = 0;
+  private gpPrevDpadLeft = false;
+  private gpPrevDpadRight = false;
+  private gpPrevButtonA = false;
+  private gpPrevButtonB = false;
 
   constructor() {
     super({ key: 'OfferScene' });
@@ -148,7 +156,7 @@ export class OfferScene extends Phaser.Scene {
     }
 
     this.add
-      .text(640, 570, '[LEFT] / [RIGHT] navigate   [ENTER] pick   [SPACE] skip', {
+      .text(640, 570, '[LEFT]/[RIGHT]/L-STICK navigate   [ENTER]/A pick   [SPACE]/B skip', {
         fontSize: '12px',
         fontFamily: 'monospace',
         color: '#555555',
@@ -166,20 +174,51 @@ export class OfferScene extends Phaser.Scene {
   }
 
   update(): void {
-    if (Phaser.Input.Keyboard.JustDown(this.leftKey)) {
-      this.selectedIndex = (this.selectedIndex - 1 + this.offers.length) % this.offers.length;
-      this.refreshCards();
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.rightKey)) {
-      this.selectedIndex = (this.selectedIndex + 1) % this.offers.length;
-      this.refreshCards();
-    }
+    if (Phaser.Input.Keyboard.JustDown(this.leftKey)) this.navigateLeft();
+    if (Phaser.Input.Keyboard.JustDown(this.rightKey)) this.navigateRight();
     if (Phaser.Input.Keyboard.JustDown(this.confirmKey)) {
       this.closeWithResult(this.offers[this.selectedIndex].id);
     }
     if (Phaser.Input.Keyboard.JustDown(this.skipKey) || Phaser.Input.Keyboard.JustDown(this.escKey)) {
       this.closeWithResult(null);
     }
+    this.pollGamepad();
+  }
+
+  private navigateLeft(): void {
+    this.selectedIndex = (this.selectedIndex - 1 + this.offers.length) % this.offers.length;
+    this.refreshCards();
+  }
+
+  private navigateRight(): void {
+    this.selectedIndex = (this.selectedIndex + 1) % this.offers.length;
+    this.refreshCards();
+  }
+
+  private pollGamepad(): void {
+    const gp = navigator.getGamepads()[0];
+    if (!gp) return;
+
+    const rawX = gp.axes[0] ?? 0;
+    const stickX = Math.abs(rawX) > STICK_DEADZONE ? rawX : 0;
+    const dpadLeft  = gp.buttons[14]?.pressed ?? false;
+    const dpadRight = gp.buttons[15]?.pressed ?? false;
+    const buttonA   = gp.buttons[0]?.pressed ?? false;
+    const buttonB   = gp.buttons[1]?.pressed ?? false;
+
+    // Edge detection: only trigger on transition from neutral/opposite to active
+    if (this.gpPrevStickX >= 0 && stickX < 0) this.navigateLeft();
+    if (this.gpPrevStickX <= 0 && stickX > 0) this.navigateRight();
+    if (!this.gpPrevDpadLeft  && dpadLeft)  this.navigateLeft();
+    if (!this.gpPrevDpadRight && dpadRight) this.navigateRight();
+    if (!this.gpPrevButtonA && buttonA) this.closeWithResult(this.offers[this.selectedIndex].id);
+    if (!this.gpPrevButtonB && buttonB) this.closeWithResult(null);
+
+    this.gpPrevStickX   = stickX;
+    this.gpPrevDpadLeft  = dpadLeft;
+    this.gpPrevDpadRight = dpadRight;
+    this.gpPrevButtonA  = buttonA;
+    this.gpPrevButtonB  = buttonB;
   }
 
   private refreshCards(): void {
