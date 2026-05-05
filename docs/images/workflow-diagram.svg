@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1400" font-family="system-ui, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#444"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-size="20" font-weight="bold">Scavenger Protocol: Three-Persona Workflow</text>
+
+  <!-- Idea -->
+  <rect x="350" y="60" width="200" height="50" rx="8" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="450" y="82" text-anchor="middle" font-size="13" font-weight="bold">Idea / Decision Point</text>
+  <text x="450" y="100" text-anchor="middle" font-size="11">design, gameplay, bug, architecture</text>
+
+  <!-- Vega Strategy -->
+  <rect x="320" y="150" width="260" height="80" rx="8" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+  <text x="450" y="172" text-anchor="middle" font-size="13" font-weight="bold">Vega (claude.ai)</text>
+  <text x="450" y="188" text-anchor="middle" font-size="11">Strategy + Design persona</text>
+  <text x="450" y="205" text-anchor="middle" font-size="10">Stress-tests ideas, frames tradeoffs,</text>
+  <text x="450" y="220" text-anchor="middle" font-size="10">pushes back, drafts specifications</text>
+
+  <!-- Decision Locked -->
+  <rect x="350" y="270" width="200" height="40" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="2"/>
+  <text x="450" y="295" text-anchor="middle" font-size="13" font-weight="bold">Decision Locked</text>
+
+  <!-- Vega writes /issue -->
+  <rect x="320" y="350" width="260" height="60" rx="8" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+  <text x="450" y="372" text-anchor="middle" font-size="13" font-weight="bold">Vega drafts /issue prompt</text>
+  <text x="450" y="390" text-anchor="middle" font-size="11">Spec, ACs, files affected, commit order</text>
+
+  <!-- Paul pastes -->
+  <rect x="320" y="450" width="260" height="60" rx="8" fill="#f3e8fd" stroke="#9334e6" stroke-width="2"/>
+  <text x="450" y="472" text-anchor="middle" font-size="13" font-weight="bold">Paul pastes into Cursor</text>
+  <text x="450" y="490" text-anchor="middle" font-size="11">Gloom drafts the GitHub issue</text>
+
+  <!-- Vega review issue -->
+  <rect x="320" y="550" width="260" height="60" rx="8" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+  <text x="450" y="572" text-anchor="middle" font-size="13" font-weight="bold">Vega reviews issue draft</text>
+  <text x="450" y="590" text-anchor="middle" font-size="11">Catches drift, paraphrasing, missing specifics</text>
+
+  <!-- Gloom plan -->
+  <rect x="320" y="660" width="260" height="60" rx="8" fill="#fce8e6" stroke="#ea4335" stroke-width="2"/>
+  <text x="450" y="682" text-anchor="middle" font-size="13" font-weight="bold">Gloom (Cursor) /plan</text>
+  <text x="450" y="700" text-anchor="middle" font-size="11">Proposes implementation approach</text>
+
+  <!-- Vega review plan -->
+  <rect x="320" y="760" width="260" height="60" rx="8" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+  <text x="450" y="782" text-anchor="middle" font-size="13" font-weight="bold">Vega reviews plan</text>
+  <text x="450" y="800" text-anchor="middle" font-size="11">Architecture, tests, edge cases, scope</text>
+
+  <!-- Gloom implement -->
+  <rect x="320" y="860" width="260" height="80" rx="8" fill="#fce8e6" stroke="#ea4335" stroke-width="2"/>
+  <text x="450" y="882" text-anchor="middle" font-size="13" font-weight="bold">Gloom /implement</text>
+  <text x="450" y="900" text-anchor="middle" font-size="11">Writes code + tests, runs lint/tsc/jest,</text>
+  <text x="450" y="916" text-anchor="middle" font-size="11">commits, pushes, opens PR</text>
+
+  <!-- Gloom review -->
+  <rect x="320" y="980" width="260" height="60" rx="8" fill="#fce8e6" stroke="#ea4335" stroke-width="2"/>
+  <text x="450" y="1002" text-anchor="middle" font-size="13" font-weight="bold">Gloom /review</text>
+  <text x="450" y="1020" text-anchor="middle" font-size="11">Pass 1: spec compliance | Pass 2: quality</text>
+
+  <!-- Paul test -->
+  <rect x="320" y="1080" width="260" height="60" rx="8" fill="#f3e8fd" stroke="#9334e6" stroke-width="2"/>
+  <text x="450" y="1102" text-anchor="middle" font-size="13" font-weight="bold">Paul /test in browser</text>
+  <text x="450" y="1120" text-anchor="middle" font-size="11">Manual smoke test against AC list</text>
+
+  <!-- Merge -->
+  <rect x="320" y="1180" width="260" height="60" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="2"/>
+  <text x="450" y="1202" text-anchor="middle" font-size="13" font-weight="bold">Paul merges PR + /merged</text>
+  <text x="450" y="1220" text-anchor="middle" font-size="11">Local sync, branch cleanup</text>
+
+  <!-- Journal -->
+  <rect x="320" y="1280" width="260" height="80" rx="8" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="450" y="1302" text-anchor="middle" font-size="13" font-weight="bold">build-journal.md entry</text>
+  <text x="450" y="1320" text-anchor="middle" font-size="11">Drafted periodically with Vega:</text>
+  <text x="450" y="1336" text-anchor="middle" font-size="11">decisions, rejected options, surprises</text>
+
+  <!-- Main flow arrows -->
+  <line x1="450" y1="110" x2="450" y2="148" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="230" x2="450" y2="268" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="310" x2="450" y2="348" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="410" x2="450" y2="448" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="510" x2="450" y2="548" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="610" x2="450" y2="658" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="720" x2="450" y2="758" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="820" x2="450" y2="858" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="940" x2="450" y2="978" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="1040" x2="450" y2="1078" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="1140" x2="450" y2="1178" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="1240" x2="450" y2="1278" stroke="#444" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Revise loop: Vega review issue -->
+  <path d="M 580 580 Q 700 580 700 470 Q 700 380 580 380" fill="none" stroke="#d93025" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <text x="710" y="480" font-size="11" fill="#d93025">revise</text>
+
+  <!-- Revise loop: Vega review plan -->
+  <path d="M 580 790 Q 720 790 720 690 Q 720 600 580 600" fill="none" stroke="#d93025" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <text x="730" y="700" font-size="11" fill="#d93025">revise</text>
+
+  <!-- Review changes loop -->
+  <path d="M 580 1010 Q 750 1010 750 920 Q 750 870 580 870" fill="none" stroke="#d93025" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <text x="760" y="930" font-size="11" fill="#d93025">changes req.</text>
+
+  <!-- Bug back to Gloom -->
+  <path d="M 320 1110 Q 200 1110 200 900 Q 200 880 320 880" fill="none" stroke="#d93025" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <text x="100" y="990" font-size="11" fill="#d93025">AC bug → Gloom</text>
+
+  <!-- Bug back to Vega -->
+  <path d="M 320 1130 Q 80 1130 80 200 Q 80 180 320 180" fill="none" stroke="#d93025" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)"/>
+  <text x="20" y="650" font-size="11" fill="#d93025">design bug → Vega</text>
+
+  <!-- Legend -->
+  <rect x="40" y="60" width="220" height="160" rx="6" fill="#fafafa" stroke="#999"/>
+  <text x="150" y="82" text-anchor="middle" font-size="12" font-weight="bold">Personas</text>
+  
+  <rect x="55" y="95" width="20" height="14" fill="#fef7e0" stroke="#f9ab00"/>
+  <text x="82" y="106" font-size="11">Vega (strategy)</text>
+  
+  <rect x="55" y="118" width="20" height="14" fill="#fce8e6" stroke="#ea4335"/>
+  <text x="82" y="129" font-size="11">Gloom (implementation)</text>
+  
+  <rect x="55" y="141" width="20" height="14" fill="#f3e8fd" stroke="#9334e6"/>
+  <text x="82" y="152" font-size="11">Paul (decision + verify)</text>
+  
+  <rect x="55" y="164" width="20" height="14" fill="#e8f0fe" stroke="#1a73e8"/>
+  <text x="82" y="175" font-size="11">Shared artifact</text>
+
+  <line x1="55" y1="195" x2="75" y2="195" stroke="#d93025" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="82" y="199" font-size="11">Revise / bug loop</text>
+</svg>
